@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HttpMethod, HttpRequest, HttpResponse, Header, QueryParam, RequestBody, FormDataField, AuthConfig } from '@/types'
 import { apiService } from '@/lib/api'
 import { mockApiService } from '@/lib/mock-api'
-import { useRequestStore } from '@/store/request-store'
+import { useTabsStore } from '@/store/tabs-store'
 import { useCollectionsStore } from '@/store/collections'
 import { useHistoryStore } from '@/store/history'
 import { substituteRequestVariables } from '@/lib/environment'
@@ -40,8 +40,6 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
 }
 
 export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [response, setResponse] = useState<HttpResponse | null>(null)
   const [activeTab, setActiveTab] = useState('params')
   const [responseTab, setResponseTab] = useState('body')
   const [bodyLanguage, setBodyLanguage] = useState('json')
@@ -92,18 +90,26 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
   
-  // Request store
+  // Tabs store
   const {
-    currentRequest,
-    isDirty,
-    updateMethod,
-    updateUrl,
-    updateHeaders,
-    updateQueryParams,
-    updateBody,
-    updateAuth,
-    saveRequest
-  } = useRequestStore()
+    tabs,
+    activeTabId,
+    updateActiveMethod,
+    updateActiveUrl,
+    updateActiveHeaders,
+    updateActiveQueryParams,
+    updateActiveBody,
+    updateActiveAuth,
+    setActiveTabResponse,
+    setActiveTabLoading,
+    saveActiveTab,
+  } = useTabsStore()
+
+  const activeTab_ = tabs.find(t => t.id === activeTabId)
+  const currentRequest = activeTab_?.request
+  const isDirty = activeTab_?.isDirty ?? false
+  const isLoading = activeTab_?.isLoading ?? false
+  const response = activeTab_?.response ?? null
   
   // Collections store
   const { activeCollection } = useCollectionsStore()
@@ -116,7 +122,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const [body, setBody] = useState<RequestBody>({ type: 'none', content: '' })
   const [auth, setAuth] = useState<AuthConfig>({ type: 'none' })
   
-  // Sync local state with store only when currentRequest changes from external source
+  // Sync local state when the active tab or its request changes from an external source.
   useEffect(() => {
     if (currentRequest) {
       setMethod(currentRequest.method)
@@ -126,7 +132,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       setBody(currentRequest.body)
       setAuth(currentRequest.auth)
     }
-  }, [currentRequest?.id]) // Only re-sync when request ID changes
+  }, [currentRequest?.id, activeTabId]) // Re-sync on request ID change or tab switch
 
   const handleSaveRequest = async () => {
     if (!activeCollection) {
@@ -138,15 +144,15 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       return
     }
     
-    // Update store with current local state before saving
-    updateMethod(method)
-    updateUrl(url)
-    updateHeaders(headers)
-    updateQueryParams(queryParams)
-    updateBody(body)
-    updateAuth(auth)
-    
-    await saveRequest(activeCollection.name)
+    // Flush local edits into the store before saving.
+    updateActiveMethod(method)
+    updateActiveUrl(url)
+    updateActiveHeaders(headers)
+    updateActiveQueryParams(queryParams)
+    updateActiveBody(body)
+    updateActiveAuth(auth)
+
+    await saveActiveTab(activeCollection.name)
   }
 
   // Keyboard shortcuts
@@ -177,13 +183,13 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       return
     }
 
-    // Update store with current local state
-    updateMethod(method)
-    updateUrl(url)
-    updateHeaders(headers)
-    updateQueryParams(queryParams)
-    updateBody(body)
-    updateAuth(auth)
+    // Flush local edits into the store before sending.
+    updateActiveMethod(method)
+    updateActiveUrl(url)
+    updateActiveHeaders(headers)
+    updateActiveQueryParams(queryParams)
+    updateActiveBody(body)
+    updateActiveAuth(auth)
 
     // Get active environment from collections store
     const { activeEnvironment } = useCollectionsStore.getState()
@@ -197,7 +203,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     )
 
     console.log('Sending request to:', substituted.url)
-    setIsLoading(true)
+    setActiveTabLoading(true)
     
     try {
       // Apply auth to headers
@@ -259,8 +265,8 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         }
       }
 
-      setResponse(response)
-      
+      setActiveTabResponse(response)
+
       // Refresh history after successful request
       const { fetchHistory } = useHistoryStore.getState()
       fetchHistory()
@@ -268,7 +274,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       if (onRequestSent) onRequestSent(request, response)
     } catch (error) {
       console.error('Request failed:', error)
-      setResponse({
+      setActiveTabResponse({
         status: 0,
         statusText: 'Request Failed',
         headers: {},
@@ -277,7 +283,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         time: 0
       })
     } finally {
-      setIsLoading(false)
+      setActiveTabLoading(false)
     }
   }
 
