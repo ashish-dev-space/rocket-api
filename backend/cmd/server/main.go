@@ -1,28 +1,148 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
-	"github.com/yourusername/rocket-api/internal/infrastructure/config"
-	"github.com/yourusername/rocket-api/pkg/logger"
+	"github.com/gorilla/mux"
+	"github.com/yourusername/rocket-api/internal/infrastructure/repository"
+	"github.com/yourusername/rocket-api/internal/infrastructure/storage"
+	ws "github.com/yourusername/rocket-api/internal/infrastructure/websocket"
+	"github.com/yourusername/rocket-api/internal/interfaces/handlers"
 )
 
+// corsMiddleware handles CORS for all requests
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle preflight OPTIONS request
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
-	cfg := config.Load()
-	log := logger.New(cfg.LogLevel)
+	// Setup collections directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "."
+	}
+	collectionsPath := filepath.Join(homeDir, ".rocket-api", "collections")
+	historyPath := filepath.Join(homeDir, ".rocket-api", "history")
 
-	log.Infof("Starting Rocket API v%s", cfg.Version)
-	log.Infof("Server address: %s", cfg.ServerAddress)
-	log.Infof("Collections path: %s", cfg.CollectionsPath)
+	// Create repositories
+	repo := repository.NewCollectionRepository(collectionsPath)
+	if err := repo.EnsureBasePath(); err != nil {
+		log.Fatalf("Failed to create collections directory: %v", err)
+	}
 
-	// Placeholder server - will add router later
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+	historyRepo := repository.NewHistoryRepository(historyPath)
+	if err := historyRepo.EnsureBasePath(); err != nil {
+		log.Fatalf("Failed to create history directory: %v", err)
+	}
+
+	// Setup file watcher
+	watcher, err := storage.NewFileWatcher(collectionsPath)
+	if err != nil {
+		log.Fatalf("Failed to create file watcher: %v", err)
+	}
+
+	if err := watcher.Start(); err != nil {
+		log.Fatalf("Failed to start file watcher: %v", err)
+	}
+	defer watcher.Stop()
+
+	// Setup WebSocket hub
+	hub := ws.NewHub()
+	go hub.Run()
+
+	// Register file watcher handler to broadcast changes
+	watcher.RegisterHandler("*", func(event storage.FileChangeEvent) {
+		hub.Broadcast("file_change", event.Collection, map[string]interface{}{
+			"type":         event.Type,
+			"path":         event.Path,
+			"relativePath": event.RelativePath,
+		})
 	})
 
-	log.Infof("Server listening on %s", cfg.ServerAddress)
-	if err := http.ListenAndServe(cfg.ServerAddress, nil); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+	// Create handlers
+	collectionHandler := handlers.NewCollectionHandler(repo)
+	importExportHandler := handlers.NewImportExportHandler(repo)
+	historyHandler := handlers.NewHistoryHandler(historyRepo)
+
+	// Set history repository for request tracking
+	handlers.SetHistoryRepository(historyRepo)
+
+	// Create router
+	r := mux.NewRouter()
+
+	// Health check endpoint
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok","message":"Rocket API is running"}`))
+	}).Methods("GET", "OPTIONS")
+
+	// API v1 routes
+	api := r.PathPrefix("/api/v1").Subrouter()
+
+	// Collection routes
+	api.HandleFunc("/collections", collectionHandler.ListCollections).Methods("GET", "OPTIONS")
+	api.HandleFunc("/collections", collectionHandler.CreateCollection).Methods("POST", "OPTIONS")
+	api.HandleFunc("/collections/{name}", collectionHandler.GetCollection).Methods("GET", "OPTIONS")
+	api.HandleFunc("/collections/{name}", collectionHandler.DeleteCollection).Methods("DELETE", "OPTIONS")
+
+	// Request routes
+	api.HandleFunc("/requests", collectionHandler.GetRequest).Methods("GET", "OPTIONS")
+	api.HandleFunc("/requests", collectionHandler.SaveRequest).Methods("POST", "OPTIONS")
+	api.HandleFunc("/requests", collectionHandler.DeleteRequest).Methods("DELETE", "OPTIONS")
+
+	// Environment routes
+	api.HandleFunc("/environments", collectionHandler.ListEnvironments).Methods("GET", "OPTIONS")
+	api.HandleFunc("/environments", collectionHandler.GetEnvironment).Methods("GET", "OPTIONS")
+	api.HandleFunc("/environments", collectionHandler.SaveEnvironment).Methods("POST", "OPTIONS")
+
+	// Import/Export routes
+	api.HandleFunc("/import/bruno", importExportHandler.ImportBruno).Methods("POST", "OPTIONS")
+	api.HandleFunc("/export/bruno", importExportHandler.ExportBruno).Methods("GET", "OPTIONS")
+	api.HandleFunc("/import/postman", importExportHandler.ImportPostman).Methods("POST", "OPTIONS")
+	api.HandleFunc("/export/postman", importExportHandler.ExportPostman).Methods("GET", "OPTIONS")
+
+	// History routes
+	api.HandleFunc("/history", historyHandler.ListHistory).Methods("GET", "OPTIONS")
+	api.HandleFunc("/history", historyHandler.ClearHistory).Methods("DELETE", "OPTIONS")
+	api.HandleFunc("/history/detail", historyHandler.GetHistory).Methods("GET", "OPTIONS")
+	api.HandleFunc("/history/detail", historyHandler.DeleteHistory).Methods("DELETE", "OPTIONS")
+
+	// Legacy request handler (for sending HTTP requests)
+	api.HandleFunc("/requests/send", handlers.SendRequestHandler).Methods("POST", "OPTIONS")
+
+	// WebSocket endpoint
+	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWs(hub, w, r)
+	})
+
+	// Apply CORS middleware
+	corsHandler := corsMiddleware(r)
+
+	port := ":8080"
+	log.Printf("🚀 Rocket API Server starting on port %s", port)
+	log.Printf("📊 Health check: http://localhost%s/health", port)
+	log.Printf("📁 Collections: %s", collectionsPath)
+	log.Printf("🔗 API endpoint: http://localhost%s/api/v1", port)
+	log.Printf("🔌 WebSocket: ws://localhost%s/ws", port)
+
+	log.Fatal(http.ListenAndServe(port, corsHandler))
 }
