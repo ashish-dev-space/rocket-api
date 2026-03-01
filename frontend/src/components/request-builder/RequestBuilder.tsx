@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,7 +11,8 @@ import { useCollectionsStore } from '@/store/collections'
 import { useHistoryStore } from '@/store/history'
 import { substituteRequestVariables } from '@/lib/environment'
 import { MonacoEditor } from '@/components/ui/monaco-editor'
-import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save } from 'lucide-react'
+import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save, Copy } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,12 +46,51 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const [responseTab, setResponseTab] = useState('body')
   const [bodyLanguage, setBodyLanguage] = useState('json')
   
+  // Resizable panel state
+  const [requestHeight, setRequestHeight] = useState(50)
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
   // Alert dialog state
   const [alertDialog, setAlertDialog] = useState<{
     isOpen: boolean
     title: string
     description: string
   }>({ isOpen: false, title: '', description: '' })
+  
+  // Handle resize
+  const handleMouseDown = useCallback(() => {
+    setIsDragging(true)
+  }, [])
+  
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+  
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !containerRef.current) return
+    
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const newHeight = ((e.clientY - containerRect.top) / containerRect.height) * 100
+    
+    // Clamp between 20% and 80%
+    setRequestHeight(Math.max(20, Math.min(80, newHeight)))
+  }, [isDragging])
+  
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp])
   
   // Request store
   const {
@@ -109,8 +149,29 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     await saveRequest(activeCollection.name)
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Enter to send request
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (url.trim()) {
+          handleSubmit()
+        }
+      }
+      // Ctrl/Cmd + S to save request
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleSaveRequest()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [url, method, headers, queryParams, body, auth, activeCollection])
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     if (!url.trim()) {
       console.log('URL is empty, cannot send request')
       return
@@ -286,13 +347,6 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     reader.readAsDataURL(file)
   }
 
-  const getStatusColor = (status: number) => {
-    if (status >= 200 && status < 300) return 'text-green-600'
-    if (status >= 300 && status < 400) return 'text-yellow-600'
-    if (status >= 400) return 'text-red-600'
-    return 'text-gray-600'
-  }
-
   const formatResponseBody = (body: unknown): string => {
     if (typeof body === 'string') {
       try {
@@ -313,66 +367,84 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={containerRef} className="flex flex-col h-full overflow-hidden">
       {/* Request Section */}
-      <div className="flex-1 flex flex-col min-h-0 border-b border-border">
-        {/* URL Bar - Bruno Style */}
-        <div className="p-3 border-b border-border bg-muted/30">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
-              <SelectTrigger className={`w-[100px] font-medium text-xs ${METHOD_COLORS[method]}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {HTTP_METHODS.map((m) => (
-                  <SelectItem key={m} value={m} className="text-xs">
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <div className="flex-1 relative">
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter URL (use {{variable}} for env vars)"
-                className="text-sm pr-8"
-              />
-              {url.includes('{{') && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <span className="text-[10px] text-orange-500 font-medium">vars</span>
-                </div>
-              )}
-            </div>
-            
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              size="sm"
-              className="bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              <span className="ml-1">Send</span>
-            </Button>
-            
-            <Button 
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSaveRequest}
-              disabled={!activeCollection}
-              className="text-xs"
-              title={isDirty ? 'Unsaved changes' : 'Saved'}
-            >
-              <Save className="h-4 w-4 mr-1" />
-              {isDirty ? 'Save*' : 'Save'}
-            </Button>
-          </form>
+      <div 
+        className="flex flex-col overflow-hidden"
+        style={{ height: `${requestHeight}%`, minHeight: '20%', maxHeight: '80%' }}
+      >
+        {/* URL Bar - Enhanced Style */}
+        <div className="p-4 border-b border-border bg-muted/40 shadow-sm">
+          <TooltipProvider>
+            <form onSubmit={handleSubmit} className="flex gap-3">
+              <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
+                <SelectTrigger className={`w-[110px] font-semibold text-sm ${METHOD_COLORS[method]} border-2`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HTTP_METHODS.map((m) => (
+                    <SelectItem key={m} value={m} className="text-sm font-medium">
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex-1 relative">
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="Enter URL (use {{variable}} for env vars)"
+                  className="text-sm pr-20 h-9 font-mono bg-background"
+                />
+                {url.includes('{{') && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <span className="text-[10px] px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">vars</span>
+                  </div>
+                )}
+              </div>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    size="default"
+                    className="bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 font-semibold px-4"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Send</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Send Request (Ctrl+Enter)</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    type="button"
+                    variant="outline"
+                    size="default"
+                    onClick={handleSaveRequest}
+                    disabled={!activeCollection}
+                    className={`font-medium px-3 ${isDirty ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : ''}`}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {isDirty ? 'Save*' : 'Save'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </form>
+          </TooltipProvider>
         </div>
 
         {/* Request Tabs - Bruno Style */}
@@ -744,25 +816,55 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         </Tabs>
       </div>
 
-      {/* Response Section - Bruno Style */}
-      <div className="flex-1 flex flex-col min-h-0 bg-muted/10">
+      {/* Resize Handle - Drag to resize */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={`h-4 bg-muted border-y-2 border-border flex items-center justify-center cursor-row-resize select-none transition-colors ${
+          isDragging ? 'bg-primary/20 border-primary' : 'hover:bg-primary/10 hover:border-primary/50'
+        }`}
+      >
+        <div className={`w-16 h-1.5 rounded-full transition-all ${isDragging ? 'w-24 h-2 bg-primary' : 'bg-muted-foreground/40'}`} />
+      </div>
+
+      {/* Response Section */}
+      <div className="flex-1 flex flex-col bg-muted/20 overflow-hidden min-h-0">
         {response ? (
           <>
             {/* Response Status Bar */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/20">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
               <div className="flex items-center gap-4">
-                <span className={`font-medium ${getStatusColor(response.status)}`}>
-                  {response.status} {response.statusText?.replace(/^\d+\s*/, '') || 'OK'}
+                {/* Status Badge */}
+                <div className={`px-3 py-1 rounded-md font-bold text-sm ${
+                  response.status >= 200 && response.status < 300 
+                    ? 'bg-green-100 text-green-700 border border-green-200' 
+                    : response.status >= 300 && response.status < 400
+                    ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                    : response.status >= 400
+                    ? 'bg-red-100 text-red-700 border border-red-200'
+                    : 'bg-gray-100 text-gray-700 border border-gray-200'
+                }`}>
+                  {response.status}
+                </div>
+                <span className="font-medium text-foreground">
+                  {response.statusText?.replace(/^\d+\s*/, '') || 'OK'}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {response.time}ms
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {(response.size / 1024).toFixed(2)} KB
-                </span>
+                
+                {/* Divider */}
+                <div className="w-px h-4 bg-border" />
+                
+                {/* Time */}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span className="font-mono">{response.time}ms</span>
+                </div>
+                
+                {/* Size */}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span className="font-mono">{(response.size / 1024).toFixed(2)} KB</span>
+                </div>
+                
                 {response.headers?.['X-Rocket-Mock'] && (
-                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
-                    Mock
+                  <span className="text-xs font-medium bg-yellow-100 text-yellow-700 px-2 py-1 rounded border border-yellow-200">
+                    Mock Response
                   </span>
                 )}
               </div>
@@ -777,13 +879,30 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
             {/* Response Content */}
             <div className="flex-1 overflow-auto p-3">
               {responseTab === 'body' && (
-                <div className="h-full">
-                  <MonacoEditor
-                    height="100%"
-                    language="json"
-                    value={formatResponseBody(response.body)}
-                    onChange={() => {}}
-                  />
+                <div className="h-full flex flex-col">
+                  {/* Response Toolbar */}
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-border/50">
+                    <span className="text-xs text-muted-foreground">Response Body</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(formatResponseBody(response.body))
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      Copy
+                    </Button>
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <MonacoEditor
+                      height="100%"
+                      language="json"
+                      value={formatResponseBody(response.body)}
+                      onChange={() => {}}
+                    />
+                  </div>
                 </div>
               )}
               {responseTab === 'headers' && (
