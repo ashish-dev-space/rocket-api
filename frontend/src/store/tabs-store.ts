@@ -27,6 +27,7 @@ interface TabsState {
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
 
+  updateActiveName: (name: string) => void
   updateActiveMethod: (method: HttpMethod) => void
   updateActiveUrl: (url: string) => void
   updateActiveHeaders: (headers: Header[]) => void
@@ -101,6 +102,15 @@ export const useTabsStore = create<TabsState>((set, get) => {
     },
 
     setActiveTab: (id) => set({ activeTabId: id }),
+
+    updateActiveName: (name) =>
+      set(state => ({
+        tabs: state.tabs.map(t =>
+          t.id === state.activeTabId
+            ? { ...t, request: { ...t.request, name }, isDirty: true }
+            : t
+        ),
+      })),
 
     updateActiveMethod: (method) =>
       set(state => ({
@@ -194,7 +204,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
       })),
 
     saveActiveTab: async (collectionName, path?) => {
-      const { tabs, activeTabId, markActiveTabSaved } = get()
+      const { tabs, activeTabId } = get()
       const activeTab = tabs.find(t => t.id === activeTabId)
       if (!activeTab) return
 
@@ -229,8 +239,15 @@ export const useTabsStore = create<TabsState>((set, get) => {
       }
 
       const { apiService } = await import('@/lib/api')
-      await apiService.saveRequest(collectionName, path, bruFile)
-      markActiveTabSaved()
+      const effectivePath = path ?? activeTab.filePath
+      const result = await apiService.saveRequest(collectionName, effectivePath, bruFile)
+      set(state => ({
+        tabs: state.tabs.map(t =>
+          t.id === activeTabId
+            ? { ...t, isDirty: false, filePath: result.path, collectionName }
+            : t
+        ),
+      }))
     },
 
     loadRequestFromPath: async (collectionName, path) => {

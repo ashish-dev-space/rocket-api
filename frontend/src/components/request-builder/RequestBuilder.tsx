@@ -86,6 +86,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const {
     tabs,
     activeTabId,
+    updateActiveName,
     updateActiveMethod,
     updateActiveUrl,
     updateActiveHeaders,
@@ -107,6 +108,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const { activeCollection } = useCollectionsStore()
   
   // Local state for editing
+  const [name, setName] = useState('Untitled Request')
   const [method, setMethod] = useState<HttpMethod>('GET')
   const [url, setUrl] = useState('')
   const [headers, setHeaders] = useState<Header[]>([])
@@ -117,6 +119,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   // Sync local state when the active tab or its request changes from an external source.
   useEffect(() => {
     if (currentRequest) {
+      setName(currentRequest.name)
       setMethod(currentRequest.method)
       setUrl(currentRequest.url)
       setHeaders(currentRequest.headers)
@@ -137,6 +140,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     }
 
     // Flush local edits into the store before saving.
+    updateActiveName(name)
     updateActiveMethod(method)
     updateActiveUrl(url)
     updateActiveHeaders(headers)
@@ -145,7 +149,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     updateActiveAuth(auth)
 
     await saveActiveTab(activeCollection.name)
-  }, [activeCollection, method, url, headers, queryParams, body, auth, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActiveBody, updateActiveAuth, saveActiveTab])
+  }, [activeCollection, name, method, url, headers, queryParams, body, auth, updateActiveName, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActiveBody, updateActiveAuth, saveActiveTab])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -365,7 +369,16 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         style={{ height: `${requestHeight}%`, minHeight: '20%', maxHeight: '80%' }}
       >
         {/* URL Bar - Enhanced Style */}
-        <div className="p-4 border-b border-border bg-muted/40 shadow-sm">
+        <div className="px-4 pt-2 pb-4 border-b border-border bg-muted/40 shadow-sm space-y-2">
+          <Input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              updateActiveName(e.target.value)
+            }}
+            placeholder="Untitled Request"
+            className="h-7 text-sm font-medium border-0 border-b border-transparent hover:border-border focus:border-primary rounded-none bg-transparent px-0 focus-visible:ring-0 shadow-none"
+          />
           <TooltipProvider>
             <form onSubmit={handleSubmit} className="flex gap-3">
               <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
