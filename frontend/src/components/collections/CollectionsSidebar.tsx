@@ -416,44 +416,46 @@ export function CollectionsSidebar() {
                 <div key={collection.id}>
                   {/* Collection Header */}
                   <div
-                    className={`flex items-center gap-1 px-2 py-1.5 hover:bg-accent/50 transition-colors group cursor-pointer ${
+                    className={`flex items-center gap-1 hover:bg-accent/50 transition-colors group ${
                       isActive ? 'bg-accent/40' : ''
                     }`}
-                    onClick={() => {
-                      toggleCollection(collection.id)
-                      setActiveCollection(collection)
-                    }}
                   >
-                    <span className="shrink-0 h-5 w-5 flex items-center justify-center">
-                      {isExpanded ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </span>
-                    <span className="flex items-center gap-1.5 flex-1 min-w-0">
-                      {isExpanded ? (
-                        <FolderOpen className="h-4 w-4 text-orange-500 shrink-0" />
-                      ) : (
-                        <Folder className="h-4 w-4 text-orange-500 shrink-0" />
-                      )}
-                      <span className="truncate text-xs font-medium">{collection.name}</span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        ({collection.requestCount})
-                      </span>
-                    </span>
-
-                    {/* Action icons — stop propagation so clicks don't toggle the row. */}
-                    <div
-                      className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 flex-1 min-w-0 px-2 py-1.5 text-left"
+                      onClick={() => {
+                        toggleCollection(collection.id)
+                        setActiveCollection(collection)
+                      }}
                     >
+                      <span className="shrink-0 h-5 w-5 flex items-center justify-center">
+                        {isExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </span>
+                      <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {isExpanded ? (
+                          <FolderOpen className="h-4 w-4 text-orange-500 shrink-0" />
+                        ) : (
+                          <Folder className="h-4 w-4 text-orange-500 shrink-0" />
+                        )}
+                        <span className="truncate text-xs font-medium">{collection.name}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          ({collection.requestCount})
+                        </span>
+                      </span>
+                    </button>
+
+                    {/* Action icons */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pr-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleExportBruno(collection.name)}
+                            onClick={(e) => { e.stopPropagation(); handleExportBruno(collection.name) }}
                             className="h-6 w-6"
                           >
                             <Download className="h-3 w-3" />
@@ -466,7 +468,7 @@ export function CollectionsSidebar() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteCollection(collection.name)}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCollection(collection.name) }}
                             className="h-6 w-6 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -478,7 +480,7 @@ export function CollectionsSidebar() {
                   </div>
 
                   {/* Collection Tree */}
-                  {isExpanded && collectionTree?.children && (
+                  {isExpanded && isActive && collectionTree?.children && (
                     <div className="border-l border-border/50 ml-4">
                       {collectionTree.children.map(child => renderTreeNode(child, 0))}
                     </div>
