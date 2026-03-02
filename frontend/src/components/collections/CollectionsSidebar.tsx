@@ -304,7 +304,11 @@ export function CollectionsSidebar() {
             onClick={() => {
               setExpandedFolders(prev => {
                 const next = new Set(prev)
-                next.has(folderKey) ? next.delete(folderKey) : next.add(folderKey)
+                if (next.has(folderKey)) {
+                  next.delete(folderKey)
+                } else {
+                  next.add(folderKey)
+                }
                 return next
               })
             }}
