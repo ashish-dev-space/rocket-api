@@ -149,6 +149,8 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     updateActiveAuth(auth)
 
     await saveActiveTab(activeCollection.name)
+    // Refresh the sidebar tree so the saved request appears immediately.
+    useCollectionsStore.getState().fetchCollectionTree(activeCollection.name)
   }, [activeCollection, name, method, url, headers, queryParams, body, auth, updateActiveName, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActiveBody, updateActiveAuth, saveActiveTab])
 
   // Keyboard shortcuts
