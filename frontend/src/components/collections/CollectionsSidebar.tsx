@@ -52,7 +52,8 @@ interface TreeNode {
 }
 
 export function CollectionsSidebar() {
-  const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set())
+  const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'collections' | 'history'>('collections')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -117,14 +118,9 @@ export function CollectionsSidebar() {
     }
   }, [activeTab, fetchHistory])
 
-  const toggleCollection = (collectionId: string) => {
-    const newExpanded = new Set(expandedCollections)
-    if (newExpanded.has(collectionId)) {
-      newExpanded.delete(collectionId)
-    } else {
-      newExpanded.add(collectionId)
-    }
-    setExpandedCollections(newExpanded)
+  const toggleCollection = (id: string) => {
+    setExpandedCollectionId(prev => prev === id ? null : id)
+    setExpandedFolders(new Set())
   }
 
   const handleCreateCollection = () => {
@@ -298,13 +294,20 @@ export function CollectionsSidebar() {
     }
 
     if (node.type === 'folder') {
-      const isExpanded = expandedCollections.has(node.path || node.name)
+      const folderKey = node.path || node.name
+      const isExpanded = expandedFolders.has(folderKey)
       return (
         <div key={node.path || node.name}>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => toggleCollection(node.path || node.name)}
+            onClick={() => {
+              setExpandedFolders(prev => {
+                const next = new Set(prev)
+                next.has(folderKey) ? next.delete(folderKey) : next.add(folderKey)
+                return next
+              })
+            }}
             className="w-full justify-start gap-1.5 px-2 py-1.5 h-auto hover:bg-accent/50"
             style={{ paddingLeft: `${paddingLeft}px` }}
           >
@@ -409,7 +412,7 @@ export function CollectionsSidebar() {
         ) : activeTab === 'collections' ? (
           <div className="py-1">
             {filteredCollections.map((collection) => {
-              const isExpanded = expandedCollections.has(collection.id)
+              const isExpanded = expandedCollectionId === collection.id
               const isActive = activeCollection?.id === collection.id
               
               return (
