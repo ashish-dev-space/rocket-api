@@ -72,7 +72,8 @@ func Parse(filepath string) (*BruFile, error) {
 	return ParseContent(string(content))
 }
 
-// ParseContent parses .bru file content from string
+// ParseContent parses .bru file content from string.
+// The format uses section { } blocks as produced by GenerateContent.
 func ParseContent(content string) (*BruFile, error) {
 	bru := &BruFile{
 		HTTP: struct {
@@ -91,96 +92,146 @@ func ParseContent(content string) (*BruFile, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
-	var currentSection string
-	var bodyContent strings.Builder
-	inBody := false
+	// contextStack tracks nested block names, e.g. ["http", "headers"].
+	var contextStack []string
+	// dataLines accumulates indented lines inside a data { } block.
+	var dataLines []string
+	inDataBlock := false
+
+	currentContext := func() string {
+		if len(contextStack) == 0 {
+			return ""
+		}
+		return contextStack[len(contextStack)-1]
+	}
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
+		// Collect body data lines (preserve relative indentation by stripping 4-space prefix).
+		if inDataBlock {
+			if trimmed == "}" {
+				inDataBlock = false
+				contextStack = contextStack[:len(contextStack)-1]
+				bru.Body.Data = strings.TrimRight(strings.Join(dataLines, "\n"), "\n")
+				dataLines = nil
+				continue
+			}
+			stripped := line
+			if strings.HasPrefix(line, "    ") {
+				stripped = line[4:]
+			}
+			dataLines = append(dataLines, stripped)
+			continue
+		}
+
+		// Skip empty lines and comments outside data blocks.
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Detect section headers
-		if strings.HasSuffix(trimmed, ":") && !strings.Contains(trimmed, "http:") {
-			currentSection = strings.TrimSuffix(trimmed, ":")
-			inBody = false
+		// Block close.
+		if trimmed == "}" {
+			if len(contextStack) > 0 {
+				contextStack = contextStack[:len(contextStack)-1]
+			}
 			continue
 		}
 
-		// Parse meta section
-		if currentSection == "meta" {
-			parseMetaLine(trimmed, bru)
+		// Block open: a line ending with " {" or just "{".
+		if strings.HasSuffix(trimmed, "{") {
+			blockName := strings.TrimSpace(strings.TrimSuffix(trimmed, "{"))
+			contextStack = append(contextStack, blockName)
+			if blockName == "data" {
+				inDataBlock = true
+			}
+			continue
 		}
 
-		// Parse http section
-		if currentSection == "http" {
+		// Key-value line: parse based on current context.
+		ctx := currentContext()
+		switch ctx {
+		case "meta":
+			parseMetaLine(trimmed, bru)
+
+		case "http":
 			if strings.HasPrefix(trimmed, "method:") {
 				bru.HTTP.Method = strings.TrimSpace(strings.TrimPrefix(trimmed, "method:"))
 			} else if strings.HasPrefix(trimmed, "url:") {
 				bru.HTTP.URL = strings.TrimSpace(strings.TrimPrefix(trimmed, "url:"))
-			} else if strings.HasPrefix(trimmed, "headers:") {
-				// Headers will be parsed in subsequent lines
-			} else if strings.HasPrefix(trimmed, "-") && bru.HTTP.Headers != nil {
-				// Parse header line
-				headerLine := strings.TrimPrefix(trimmed, "-")
-				headerLine = strings.TrimSpace(headerLine)
-				parts := strings.SplitN(headerLine, ":", 2)
-				if len(parts) == 2 {
-					bru.HTTP.Headers = append(bru.HTTP.Headers, Header{
-						Key:   strings.TrimSpace(parts[0]),
-						Value: strings.TrimSpace(parts[1]),
-					})
+			}
+
+		case "headers":
+			// "Key: Value" — split on first colon only.
+			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+				bru.HTTP.Headers = append(bru.HTTP.Headers, Header{
+					Key:   strings.TrimSpace(parts[0]),
+					Value: strings.TrimSpace(parts[1]),
+				})
+			}
+
+		case "query":
+			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+				bru.HTTP.QueryParams = append(bru.HTTP.QueryParams, QueryParam{
+					Key:     strings.TrimSpace(parts[0]),
+					Value:   strings.TrimSpace(parts[1]),
+					Enabled: true,
+				})
+			}
+
+		case "auth":
+			if strings.HasPrefix(trimmed, "type:") {
+				authType := strings.TrimSpace(strings.TrimPrefix(trimmed, "type:"))
+				bru.HTTP.Auth = &AuthConfig{Type: authType}
+				// Pre-allocate sub-struct so later lines can fill it in.
+				switch authType {
+				case "basic":
+					bru.HTTP.Auth.Basic = &struct {
+						Username string `json:"username"`
+						Password string `json:"password"`
+					}{}
+				case "bearer":
+					bru.HTTP.Auth.Bearer = &struct {
+						Token string `json:"token"`
+					}{}
+				case "api-key":
+					bru.HTTP.Auth.APIKey = &struct {
+						Key   string `json:"key"`
+						Value string `json:"value"`
+						In    string `json:"in"`
+					}{}
+				}
+			} else if bru.HTTP.Auth != nil {
+				switch bru.HTTP.Auth.Type {
+				case "basic":
+					if bru.HTTP.Auth.Basic != nil {
+						if strings.HasPrefix(trimmed, "username:") {
+							bru.HTTP.Auth.Basic.Username = strings.TrimSpace(strings.TrimPrefix(trimmed, "username:"))
+						} else if strings.HasPrefix(trimmed, "password:") {
+							bru.HTTP.Auth.Basic.Password = strings.TrimSpace(strings.TrimPrefix(trimmed, "password:"))
+						}
+					}
+				case "bearer":
+					if bru.HTTP.Auth.Bearer != nil && strings.HasPrefix(trimmed, "token:") {
+						bru.HTTP.Auth.Bearer.Token = strings.TrimSpace(strings.TrimPrefix(trimmed, "token:"))
+					}
+				case "api-key":
+					if bru.HTTP.Auth.APIKey != nil {
+						if strings.HasPrefix(trimmed, "key:") {
+							bru.HTTP.Auth.APIKey.Key = strings.TrimSpace(strings.TrimPrefix(trimmed, "key:"))
+						} else if strings.HasPrefix(trimmed, "value:") {
+							bru.HTTP.Auth.APIKey.Value = strings.TrimSpace(strings.TrimPrefix(trimmed, "value:"))
+						} else if strings.HasPrefix(trimmed, "in:") {
+							bru.HTTP.Auth.APIKey.In = strings.TrimSpace(strings.TrimPrefix(trimmed, "in:"))
+						}
+					}
 				}
 			}
-		}
 
-		// Parse body section
-		if currentSection == "body" {
+		case "body":
 			if strings.HasPrefix(trimmed, "type:") {
 				bru.Body.Type = strings.TrimSpace(strings.TrimPrefix(trimmed, "type:"))
-			} else if strings.HasPrefix(trimmed, "data:") {
-				inBody = true
-				bodyContent.Reset()
-				// Check if there's inline content
-				inlineData := strings.TrimSpace(strings.TrimPrefix(trimmed, "data:"))
-				if inlineData != "" && inlineData != "|" {
-					bodyContent.WriteString(inlineData)
-				}
-			} else if inBody && strings.HasPrefix(line, "  ") {
-				// Indented body content
-				bodyContent.WriteString(strings.TrimPrefix(line, "  "))
-				bodyContent.WriteString("\n")
-			}
-		}
-
-		// Parse vars section
-		if currentSection == "vars" {
-			if strings.Contains(trimmed, ":") {
-				parts := strings.SplitN(trimmed, ":", 2)
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				// Try to parse as int or bool, otherwise string
-				if intVal, err := strconv.Atoi(value); err == nil {
-					bru.Vars[key] = intVal
-				} else if value == "true" {
-					bru.Vars[key] = true
-				} else if value == "false" {
-					bru.Vars[key] = false
-				} else {
-					bru.Vars[key] = strings.Trim(value, `"`)
-				}
-			}
-		}
-
-		// Parse assertions section
-		if currentSection == "assertions" {
-			if strings.HasPrefix(trimmed, "-") {
-				assertion := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-				bru.Assertions = append(bru.Assertions, assertion)
 			}
 		}
 	}
@@ -189,8 +240,6 @@ func ParseContent(content string) (*BruFile, error) {
 		return nil, fmt.Errorf("error reading content: %w", err)
 	}
 
-	// Set body content
-	bru.HTTP.Body = strings.TrimSpace(bodyContent.String())
 	if bru.Body.Type == "" {
 		bru.Body.Type = "none"
 	}
