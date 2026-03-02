@@ -254,8 +254,7 @@ func (r *CollectionRepository) ReadEnvironment(collectionName, envName string) (
 		Variables: make(map[string]string),
 	}
 
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
+	for line := range strings.SplitSeq(string(content), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
@@ -276,7 +275,7 @@ func (r *CollectionRepository) ReadEnvironment(collectionName, envName string) (
 func (r *CollectionRepository) WriteEnvironment(collectionName string, env *Environment) error {
 	var content strings.Builder
 	for key, value := range env.Variables {
-		content.WriteString(fmt.Sprintf("%s=%s\n", key, value))
+		fmt.Fprintf(&content, "%s=%s\n", key, value)
 	}
 
 	envPath := filepath.Join("environments", env.Name+".env")
