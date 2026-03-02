@@ -182,6 +182,15 @@ func (r *CollectionRepository) GetCollectionStructure(collectionName string) (*C
 			return nil
 		}
 
+		// Skip the environments directory and all its contents.
+		if info.IsDir() && info.Name() == "environments" {
+			return filepath.SkipDir
+		}
+		// Skip any stray .env files outside environments/.
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".env") {
+			return nil
+		}
+
 		relPath, err := filepath.Rel(collectionPath, path)
 		if err != nil {
 			return err
