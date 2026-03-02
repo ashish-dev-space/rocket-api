@@ -286,10 +286,14 @@ func GenerateContent(bru *BruFile) string {
 	if bru.Body.Type != "" && bru.Body.Type != "none" {
 		content.WriteString("body {\n")
 		content.WriteString(fmt.Sprintf("  type: %s\n", bru.Body.Type))
-		if bru.HTTP.Body != "" {
+		// Body.Data is set by the frontend save path; HTTP.Body is the legacy field.
+		bodyContent := bru.Body.Data
+		if bodyContent == "" {
+			bodyContent = bru.HTTP.Body
+		}
+		if bodyContent != "" {
 			content.WriteString("  data {\n")
-			// Indent body content
-			lines := strings.Split(bru.HTTP.Body, "\n")
+			lines := strings.Split(bodyContent, "\n")
 			for _, line := range lines {
 				content.WriteString(fmt.Sprintf("    %s\n", line))
 			}
