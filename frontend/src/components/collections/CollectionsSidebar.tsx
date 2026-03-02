@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCollectionsStore } from '@/store/collections'
 import { useTabsStore } from '@/store/tabs-store'
 import { useHistoryStore } from '@/store/history'
-import { Template, Cookie as CookieType } from '@/types'
+import { Template, Cookie as CookieType, BruFile } from '@/types'
 import { apiService } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -171,8 +171,7 @@ export function CollectionsSidebar() {
     const node = renameDialog.node
     if (!node || !node.path || !activeCollection || !renameValue.trim()) return
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const bruFile = await apiService.getRequest(activeCollection.name, node.path) as any
+      const bruFile = await apiService.getRequest(activeCollection.name, node.path) as BruFile
       bruFile.meta.name = renameValue.trim()
       await apiService.saveRequest(activeCollection.name, node.path, bruFile)
       await fetchCollectionTree(activeCollection.name)
@@ -1001,7 +1000,9 @@ export function CollectionsSidebar() {
       </Dialog>
 
       {/* Rename Dialog */}
-      <Dialog open={renameDialog.isOpen} onOpenChange={(open) => setRenameDialog(prev => ({ ...prev, isOpen: open }))}>
+      <Dialog open={renameDialog.isOpen} onOpenChange={(open) => {
+          if (!open) setRenameDialog({ isOpen: false, node: null })
+        }}>
         <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-4 space-y-1">
             <DialogTitle className="text-base font-semibold tracking-tight">
