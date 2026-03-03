@@ -253,10 +253,13 @@ type Environment struct {
 func (r *CollectionRepository) ReadEnvironment(collectionName, envName string) (*Environment, error) {
 	env := &Environment{Name: envName}
 
-	readFile := func(path string, secret bool) {
+	readFile := func(path string, secret bool) error {
 		content, err := os.ReadFile(path)
 		if err != nil {
-			return // File may not exist; that's fine.
+			if os.IsNotExist(err) {
+				return nil // Missing file is expected; skip silently.
+			}
+			return err
 		}
 		for line := range strings.SplitSeq(string(content), "\n") {
 			line = strings.TrimSpace(line)
@@ -273,24 +276,29 @@ func (r *CollectionRepository) ReadEnvironment(collectionName, envName string) (
 				})
 			}
 		}
+		return nil
 	}
 
 	base := filepath.Join(r.basePath, collectionName, "environments")
-	readFile(filepath.Join(base, envName+".env"), false)
-	readFile(filepath.Join(base, envName+".env.secret"), true)
+	if err := readFile(filepath.Join(base, envName+".env"), false); err != nil {
+		return nil, fmt.Errorf("failed to read environment %q: %w", envName, err)
+	}
+	if err := readFile(filepath.Join(base, envName+".env.secret"), true); err != nil {
+		return nil, fmt.Errorf("failed to read environment secrets %q: %w", envName, err)
+	}
 
-	if len(env.Variables) == 0 {
-		// Neither file exists — environment not found.
-		mainPath := filepath.Join(base, envName+".env")
-		if _, err := os.Stat(mainPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("environment %q not found", envName)
-		}
+	// Return not-found only when the main .env file is absent.
+	mainPath := filepath.Join(base, envName+".env")
+	if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("environment %q not found", envName)
 	}
 
 	return env, nil
 }
 
 // WriteEnvironment writes enabled variables to .env (non-secrets) and .env.secret (secrets).
+// An empty .env.secret is written when there are no secret variables, which clears any
+// previously stored secrets.
 func (r *CollectionRepository) WriteEnvironment(collectionName string, env *Environment) error {
 	var plain, secret strings.Builder
 	for _, v := range env.Variables {
