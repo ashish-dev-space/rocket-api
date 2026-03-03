@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useTabsStore } from '@/store/tabs-store'
+import { useTabsStore, isRequestTab } from '@/store/tabs-store'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, FolderOpen } from 'lucide-react'
 import { METHOD_TEXT_COLORS } from '@/lib/constants'
 
 export function RequestTabs() {
@@ -21,7 +21,7 @@ export function RequestTabs() {
   const handleClose = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation()
     const tab = tabs.find(t => t.id === tabId)
-    if (tab?.isDirty) {
+    if (tab && isRequestTab(tab) && tab.isDirty) {
       setCloseCandidate(tabId)
     } else {
       closeTab(tabId)
@@ -36,6 +36,11 @@ export function RequestTabs() {
   }
 
   const candidateTab = tabs.find(t => t.id === closeCandidate)
+  const candidateLabel = candidateTab
+    ? isRequestTab(candidateTab)
+      ? candidateTab.request.name
+      : candidateTab.collectionName
+    : ''
 
   return (
     <>
@@ -59,19 +64,28 @@ export function RequestTabs() {
                 : 'hover:bg-muted/50 text-muted-foreground'
             }`}
           >
-            <span
-              className={`font-semibold text-[10px] shrink-0 ${METHOD_TEXT_COLORS[tab.request.method]}`}
-            >
-              {tab.request.method}
-            </span>
-            <span className="truncate">{tab.request.name}</span>
-            {tab.isDirty && (
-              <span
-                className="text-orange-500 shrink-0 text-[10px]"
-                aria-label="Unsaved changes"
-              >
-                ●
-              </span>
+            {isRequestTab(tab) ? (
+              <>
+                <span
+                  className={`font-semibold text-[10px] shrink-0 ${METHOD_TEXT_COLORS[tab.request.method]}`}
+                >
+                  {tab.request.method}
+                </span>
+                <span className="truncate">{tab.request.name}</span>
+                {tab.isDirty && (
+                  <span
+                    className="text-orange-500 shrink-0 text-[10px]"
+                    aria-label="Unsaved changes"
+                  >
+                    ●
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <FolderOpen className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                <span className="truncate">{tab.collectionName}</span>
+              </>
             )}
             <button
               type="button"
@@ -103,7 +117,7 @@ export function RequestTabs() {
           <AlertDialogHeader>
             <AlertDialogTitle>Discard changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              <strong>{candidateTab?.request.name}</strong> has unsaved changes
+              <strong>{candidateLabel}</strong> has unsaved changes
               that will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>

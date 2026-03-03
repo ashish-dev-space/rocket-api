@@ -10,3 +10,13 @@ export const METHOD_TEXT_COLORS: Record<HttpMethod, string> = {
   HEAD: 'text-gray-500',
   OPTIONS: 'text-gray-500',
 }
+
+export const METHOD_BG_COLORS: Record<string, string> = {
+  GET: 'bg-green-500',
+  POST: 'bg-blue-500',
+  PUT: 'bg-orange-500',
+  PATCH: 'bg-yellow-500',
+  DELETE: 'bg-red-500',
+  HEAD: 'bg-gray-400',
+  OPTIONS: 'bg-gray-400',
+}

@@ -9,7 +9,8 @@ import {
   AuthConfig,
 } from '@/types'
 
-export interface Tab {
+export interface RequestTab {
+  kind: 'request'
   id: string
   request: HttpRequest
   response: HttpResponse | null
@@ -19,6 +20,18 @@ export interface Tab {
   filePath?: string
 }
 
+export interface CollectionOverviewTab {
+  kind: 'collection-overview'
+  id: string
+  collectionName: string
+}
+
+export type Tab = RequestTab | CollectionOverviewTab
+
+export function isRequestTab(tab: Tab): tab is RequestTab {
+  return tab.kind === 'request'
+}
+
 interface TabsState {
   tabs: Tab[]
   activeTabId: string
@@ -26,6 +39,7 @@ interface TabsState {
   newTab: () => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
+  openCollectionOverview: (collectionName: string) => void
 
   updateActiveName: (name: string) => void
   updateActiveMethod: (method: HttpMethod) => void
@@ -60,7 +74,8 @@ const createDefaultRequest = (): HttpRequest => ({
   auth: { type: 'none' },
 })
 
-const createTab = (request?: HttpRequest): Tab => ({
+const createTab = (request?: HttpRequest): RequestTab => ({
+  kind: 'request',
   id: crypto.randomUUID(),
   request: request ?? createDefaultRequest(),
   response: null,
@@ -103,10 +118,28 @@ export const useTabsStore = create<TabsState>((set, get) => {
 
     setActiveTab: (id) => set({ activeTabId: id }),
 
+    openCollectionOverview: (collectionName: string) => {
+      const { tabs } = get()
+      const existing = tabs.find(
+        (t): t is CollectionOverviewTab =>
+          t.kind === 'collection-overview' && t.collectionName === collectionName
+      )
+      if (existing) {
+        set({ activeTabId: existing.id })
+        return
+      }
+      const tab: CollectionOverviewTab = {
+        kind: 'collection-overview',
+        id: crypto.randomUUID(),
+        collectionName,
+      }
+      set(state => ({ tabs: [...state.tabs, tab], activeTabId: tab.id }))
+    },
+
     updateActiveName: (name) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, name }, isDirty: true }
             : t
         ),
@@ -115,7 +148,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveMethod: (method) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, method }, isDirty: true }
             : t
         ),
@@ -124,7 +157,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveUrl: (url) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, url }, isDirty: true }
             : t
         ),
@@ -133,7 +166,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveHeaders: (headers) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, headers }, isDirty: true }
             : t
         ),
@@ -142,7 +175,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveQueryParams: (queryParams) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, queryParams }, isDirty: true }
             : t
         ),
@@ -151,7 +184,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveBody: (body) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, body }, isDirty: true }
             : t
         ),
@@ -160,7 +193,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveAuth: (auth) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? { ...t, request: { ...t.request, auth }, isDirty: true }
             : t
         ),
@@ -169,7 +202,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
     loadRequestInActiveTab: (request, collectionName?, filePath?) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId
+          t.id === state.activeTabId && t.kind === 'request'
             ? {
                 ...t,
                 request: { ...request, id: Date.now().toString() },
@@ -185,28 +218,28 @@ export const useTabsStore = create<TabsState>((set, get) => {
     setActiveTabResponse: (response) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId ? { ...t, response } : t
+          t.id === state.activeTabId && t.kind === 'request' ? { ...t, response } : t
         ),
       })),
 
     setActiveTabLoading: (isLoading) =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId ? { ...t, isLoading } : t
+          t.id === state.activeTabId && t.kind === 'request' ? { ...t, isLoading } : t
         ),
       })),
 
     markActiveTabSaved: () =>
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === state.activeTabId ? { ...t, isDirty: false } : t
+          t.id === state.activeTabId && t.kind === 'request' ? { ...t, isDirty: false } : t
         ),
       })),
 
     saveActiveTab: async (collectionName, path?) => {
       const { tabs, activeTabId } = get()
       const activeTab = tabs.find(t => t.id === activeTabId)
-      if (!activeTab) return
+      if (!activeTab || activeTab.kind !== 'request') return
 
       const req = activeTab.request
       const bruFile = {
@@ -251,11 +284,19 @@ export const useTabsStore = create<TabsState>((set, get) => {
     },
 
     loadRequestFromPath: async (collectionName, path) => {
-      const { activeTabId } = get()
+      const { tabs } = get()
+      let { activeTabId } = get()
+
+      // If the active tab is a collection overview, open a new request tab instead.
+      if (!tabs.find(t => t.id === activeTabId && t.kind === 'request')) {
+        const tab = createTab()
+        set(state => ({ tabs: [...state.tabs, tab], activeTabId: tab.id }))
+        activeTabId = tab.id
+      }
 
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === activeTabId ? { ...t, isLoading: true } : t
+          t.id === activeTabId && t.kind === 'request' ? { ...t, isLoading: true } : t
         ),
       }))
 
@@ -293,9 +334,11 @@ export const useTabsStore = create<TabsState>((set, get) => {
 
         get().loadRequestInActiveTab(request, collectionName, path)
       } finally {
+        // Use get() to capture the tab id that was actually loaded into.
+        const loadedTabId = get().activeTabId
         set(state => ({
           tabs: state.tabs.map(t =>
-            t.id === activeTabId ? { ...t, isLoading: false } : t
+            t.id === loadedTabId && t.kind === 'request' ? { ...t, isLoading: false } : t
           ),
         }))
       }

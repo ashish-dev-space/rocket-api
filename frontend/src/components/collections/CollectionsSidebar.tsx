@@ -112,12 +112,12 @@ export function CollectionsSidebar() {
     exportBruno
   } = useCollectionsStore()
   
-  const { loadRequestFromPath, loadRequestInActiveTab } = useTabsStore()
+  const { loadRequestFromPath, loadRequestInActiveTab, openCollectionOverview } = useTabsStore()
 
   // Read the active tab's file path for highlighting the active request.
   const activeTabFilePath = useTabsStore(state => {
     const tab = state.tabs.find(t => t.id === state.activeTabId)
-    return tab?.filePath ?? null
+    return tab && tab.kind === 'request' ? tab.filePath ?? null : null
   })
 
   useEffect(() => {
@@ -515,6 +515,7 @@ export function CollectionsSidebar() {
                       onClick={() => {
                         toggleCollection(collection.id)
                         setActiveCollection(collection)
+                        openCollectionOverview(collection.name)
                       }}
                     >
                       <span className="shrink-0 h-5 w-5 flex items-center justify-center">

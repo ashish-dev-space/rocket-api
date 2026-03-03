@@ -2,11 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RequestBuilder } from '@/components/request-builder/RequestBuilder'
 import { RequestTabs } from '@/components/request-builder/RequestTabs'
 import { CollectionsSidebar } from '@/components/collections/CollectionsSidebar'
+import { CollectionOverview } from '@/components/collections/CollectionOverview'
 import { EnvironmentsPanel } from '@/components/collections/EnvironmentsPanel'
 import { ThemeProvider, useTheme } from 'next-themes'
 import { useState, useEffect } from 'react'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { useCollectionsStore } from '@/store/collections'
+import { useTabsStore, isRequestTab } from '@/store/tabs-store'
 import { Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -49,6 +51,7 @@ function ThemeToggle() {
 function App() {
   const [showEnvironments, setShowEnvironments] = useState(false)
   const { fetchCollections, fetchCollectionTree, activeCollection } = useCollectionsStore()
+  const activeTab = useTabsStore(state => state.tabs.find(t => t.id === state.activeTabId))
   
   // WebSocket for real-time updates
   useWebSocket('ws://localhost:8080/ws', {
@@ -104,12 +107,16 @@ function App() {
             {/* Left Panel - Collections (Bruno Style) */}
             <CollectionsSidebar />
             
-            {/* Center Panel - Request/Response (Bruno Style - Stacked) */}
+            {/* Center Panel - Request/Response or Collection Overview */}
             <main className="flex-1 flex flex-col min-w-0 bg-background">
               <RequestTabs />
-              <RequestBuilder
-                onRequestSent={(req, res) => console.log('Request sent:', req, res)}
-              />
+              {activeTab && !isRequestTab(activeTab) ? (
+                <CollectionOverview collectionName={activeTab.collectionName} />
+              ) : (
+                <RequestBuilder
+                  onRequestSent={(req, res) => console.log('Request sent:', req, res)}
+                />
+              )}
             </main>
             
             {/* Right Panel - Environments (Collapsible) */}

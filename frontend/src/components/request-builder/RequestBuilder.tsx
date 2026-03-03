@@ -99,10 +99,10 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   } = useTabsStore()
 
   const activeTab_ = tabs.find(t => t.id === activeTabId)
-  const currentRequest = activeTab_?.request
-  const isDirty = activeTab_?.isDirty ?? false
-  const isLoading = activeTab_?.isLoading ?? false
-  const response = activeTab_?.response ?? null
+  const currentRequest = activeTab_?.kind === 'request' ? activeTab_.request : undefined
+  const isDirty = activeTab_?.kind === 'request' ? activeTab_.isDirty : false
+  const isLoading = activeTab_?.kind === 'request' ? activeTab_.isLoading : false
+  const response = activeTab_?.kind === 'request' ? activeTab_.response : null
   
   // Collections store
   const { activeCollection } = useCollectionsStore()
