@@ -235,51 +235,89 @@ type CollectionNode struct {
 	Children []CollectionNode `json:"children,omitempty"`
 }
 
-// Environment represents an environment file
-type Environment struct {
-	Name      string            `json:"name"`
-	Variables map[string]string `json:"variables"`
+// EnvVariable represents a single environment variable with metadata.
+type EnvVariable struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Enabled bool   `json:"enabled"`
+	Secret  bool   `json:"secret"`
 }
 
-// ReadEnvironment reads an environment file
+// Environment represents a named set of variables for a collection.
+type Environment struct {
+	Name      string        `json:"name"`
+	Variables []EnvVariable `json:"variables"`
+}
+
+// ReadEnvironment reads an environment from its .env and .env.secret files.
 func (r *CollectionRepository) ReadEnvironment(collectionName, envName string) (*Environment, error) {
-	envPath := filepath.Join(r.basePath, collectionName, "environments", envName+".env")
-	content, err := os.ReadFile(envPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read environment: %w", err)
-	}
+	env := &Environment{Name: envName}
 
-	env := &Environment{
-		Name:      envName,
-		Variables: make(map[string]string),
-	}
-
-	for line := range strings.SplitSeq(string(content), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+	readFile := func(path string, secret bool) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return // File may not exist; that's fine.
 		}
+		for line := range strings.SplitSeq(string(content), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				env.Variables = append(env.Variables, EnvVariable{
+					Key:     strings.TrimSpace(parts[0]),
+					Value:   strings.TrimSpace(parts[1]),
+					Enabled: true,
+					Secret:  secret,
+				})
+			}
+		}
+	}
 
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			env.Variables[key] = value
+	base := filepath.Join(r.basePath, collectionName, "environments")
+	readFile(filepath.Join(base, envName+".env"), false)
+	readFile(filepath.Join(base, envName+".env.secret"), true)
+
+	if len(env.Variables) == 0 {
+		// Neither file exists — environment not found.
+		mainPath := filepath.Join(base, envName+".env")
+		if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("environment %q not found", envName)
 		}
 	}
 
 	return env, nil
 }
 
-// WriteEnvironment writes an environment file
+// WriteEnvironment writes enabled variables to .env (non-secrets) and .env.secret (secrets).
 func (r *CollectionRepository) WriteEnvironment(collectionName string, env *Environment) error {
-	var content strings.Builder
-	for key, value := range env.Variables {
-		fmt.Fprintf(&content, "%s=%s\n", key, value)
+	var plain, secret strings.Builder
+	for _, v := range env.Variables {
+		if !v.Enabled {
+			continue
+		}
+		if v.Secret {
+			fmt.Fprintf(&secret, "%s=%s\n", v.Key, v.Value)
+		} else {
+			fmt.Fprintf(&plain, "%s=%s\n", v.Key, v.Value)
+		}
 	}
 
-	envPath := filepath.Join("environments", env.Name+".env")
-	return r.WriteFile(collectionName, envPath, []byte(content.String()))
+	if err := r.WriteFile(collectionName, filepath.Join("environments", env.Name+".env"), []byte(plain.String())); err != nil {
+		return err
+	}
+	return r.WriteFile(collectionName, filepath.Join("environments", env.Name+".env.secret"), []byte(secret.String()))
+}
+
+// DeleteEnvironment removes both the .env and .env.secret files for an environment.
+func (r *CollectionRepository) DeleteEnvironment(collectionName, envName string) error {
+	base := filepath.Join(r.basePath, collectionName, "environments")
+	os.Remove(filepath.Join(base, envName+".env.secret")) // Ignore error — may not exist.
+	if err := os.Remove(filepath.Join(base, envName+".env")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete environment: %w", err)
+	}
+	return nil
 }
 
 // ListEnvironments lists all environments in a collection
