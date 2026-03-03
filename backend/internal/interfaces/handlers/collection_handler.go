@@ -386,6 +386,11 @@ func (h *CollectionHandler) GetCollectionVars(w http.ResponseWriter, r *http.Req
 	vars := mux.Vars(r)
 	name := vars["name"]
 
+	if name == "" {
+		http.Error(w, "Collection name is required", http.StatusBadRequest)
+		return
+	}
+
 	collVars, err := h.repo.ReadCollectionVars(name)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to read collection variables: %v", err), http.StatusInternalServerError)
@@ -419,6 +424,11 @@ func (h *CollectionHandler) SaveCollectionVars(w http.ResponseWriter, r *http.Re
 	vars := mux.Vars(r)
 	name := vars["name"]
 
+	if name == "" {
+		http.Error(w, "Collection name is required", http.StatusBadRequest)
+		return
+	}
+
 	var payload struct {
 		Variables []repository.CollectionVar `json:"variables"`
 	}
@@ -427,6 +437,7 @@ func (h *CollectionHandler) SaveCollectionVars(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// An empty slice is valid — it clears all existing collection variables.
 	if err := h.repo.WriteCollectionVars(name, payload.Variables); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save collection variables: %v", err), http.StatusInternalServerError)
 		return
