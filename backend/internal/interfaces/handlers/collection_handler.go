@@ -325,6 +325,34 @@ func (h *CollectionHandler) GetEnvironment(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+// DeleteEnvironment handles DELETE /api/v1/environments
+func (h *CollectionHandler) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	query := r.URL.Query()
+	collection := query.Get("collection")
+	envName := query.Get("name")
+
+	if collection == "" || envName == "" {
+		http.Error(w, "Collection and environment name are required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.repo.DeleteEnvironment(collection, envName); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to delete environment: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Environment deleted successfully",
+	})
+}
+
 // SaveEnvironment handles POST /api/v1/collections/{collection}/environments
 func (h *CollectionHandler) SaveEnvironment(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
