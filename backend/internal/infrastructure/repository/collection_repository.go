@@ -346,3 +346,102 @@ func (r *CollectionRepository) ListEnvironments(collectionName string) ([]string
 
 	return envs, nil
 }
+
+// CollectionVar represents a single collection-level variable.
+type CollectionVar struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Enabled bool   `json:"enabled"`
+	Secret  bool   `json:"secret"`
+}
+
+// parseCollectionVars parses vars {} and vars:secret [] blocks from collection.bru content.
+func parseCollectionVars(content string) []CollectionVar {
+	var vars []CollectionVar
+	secretKeys := map[string]bool{}
+
+	inVarsBlock := false
+	inSecretBlock := false
+
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		switch {
+		case trimmed == "vars {":
+			inVarsBlock = true
+			inSecretBlock = false
+		case trimmed == "vars:secret [":
+			inSecretBlock = true
+			inVarsBlock = false
+		case trimmed == "}" || trimmed == "]":
+			inVarsBlock = false
+			inSecretBlock = false
+		case inVarsBlock && trimmed != "":
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				vars = append(vars, CollectionVar{
+					Key:     strings.TrimSpace(parts[0]),
+					Value:   strings.TrimSpace(parts[1]),
+					Enabled: true,
+				})
+			}
+		case inSecretBlock && trimmed != "":
+			secretKeys[trimmed] = true
+		}
+	}
+
+	for i := range vars {
+		if secretKeys[vars[i].Key] {
+			vars[i].Secret = true
+		}
+	}
+
+	return vars
+}
+
+// formatCollectionVars serialises vars to collection.bru format.
+func formatCollectionVars(vars []CollectionVar) string {
+	var sb strings.Builder
+	var secretKeys []string
+
+	sb.WriteString("vars {\n")
+	for _, v := range vars {
+		if v.Enabled {
+			fmt.Fprintf(&sb, "  %s: %s\n", v.Key, v.Value)
+			if v.Secret {
+				secretKeys = append(secretKeys, v.Key)
+			}
+		}
+	}
+	sb.WriteString("}\n")
+
+	if len(secretKeys) > 0 {
+		sb.WriteString("\nvars:secret [\n")
+		for _, k := range secretKeys {
+			fmt.Fprintf(&sb, "  %s\n", k)
+		}
+		sb.WriteString("]\n")
+	}
+
+	return sb.String()
+}
+
+// ReadCollectionVars reads collection-level variables from collection.bru.
+// Returns an empty slice when the file does not exist yet.
+func (r *CollectionRepository) ReadCollectionVars(collectionName string) ([]CollectionVar, error) {
+	path := filepath.Join(r.basePath, collectionName, "collection.bru")
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return []CollectionVar{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read collection.bru: %w", err)
+	}
+	return parseCollectionVars(string(content)), nil
+}
+
+// WriteCollectionVars writes collection-level variables to collection.bru.
+func (r *CollectionRepository) WriteCollectionVars(collectionName string, vars []CollectionVar) error {
+	content := formatCollectionVars(vars)
+	return r.WriteFile(collectionName, "collection.bru", []byte(content))
+}
