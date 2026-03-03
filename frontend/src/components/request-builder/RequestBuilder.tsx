@@ -12,8 +12,9 @@ import { useHistoryStore } from '@/store/history'
 import { substituteRequestVariables } from '@/lib/environment'
 import { METHOD_TEXT_COLORS } from '@/lib/constants'
 import { MonacoEditor } from '@/components/ui/monaco-editor'
-import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save, Copy } from 'lucide-react'
+import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save, Copy, Settings2, Globe } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { EnvironmentsDialog } from '@/components/collections/EnvironmentsDialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,7 +106,8 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const response = activeTab_?.kind === 'request' ? activeTab_.response : null
   
   // Collections store
-  const { activeCollection } = useCollectionsStore()
+  const { activeCollection, environments, activeEnvironment, setActiveEnvironment } = useCollectionsStore()
+  const [envDialogOpen, setEnvDialogOpen] = useState(false)
   
   // Local state for editing
   const [name, setName] = useState('Untitled Request')
@@ -372,15 +374,54 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       >
         {/* URL Bar - Enhanced Style */}
         <div className="px-4 pt-2 pb-4 border-b border-border bg-muted/40 shadow-sm space-y-2">
-          <Input
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              updateActiveName(e.target.value)
-            }}
-            placeholder="Untitled Request"
-            className="h-7 text-sm font-medium border-0 border-b border-transparent hover:border-border focus:border-primary rounded-none bg-transparent px-0 focus-visible:ring-0 shadow-none"
-          />
+          <div className="flex items-center gap-2">
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                updateActiveName(e.target.value)
+              }}
+              placeholder="Untitled Request"
+              className="h-7 text-sm font-medium border-0 border-b border-transparent hover:border-border focus:border-primary rounded-none bg-transparent px-0 focus-visible:ring-0 shadow-none flex-1"
+            />
+            {/* Environment selector */}
+            <div className="flex items-center gap-1 shrink-0">
+              <Select
+                value={activeEnvironment?.name ?? 'none'}
+                onValueChange={(value) => {
+                  if (value === 'none') {
+                    setActiveEnvironment(null)
+                  } else {
+                    const env = environments.find(e => e.name === value) ?? null
+                    setActiveEnvironment(env)
+                  }
+                }}
+                disabled={!activeCollection}
+              >
+                <SelectTrigger className="h-7 text-xs w-[120px] gap-1 border-dashed">
+                  <Globe className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="No Env" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="none" className="text-xs">No Environment</SelectItem>
+                  {environments.map(env => (
+                    <SelectItem key={env.name} value={env.name} className="text-xs">{env.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setEnvDialogOpen(true)}
+                title="Manage environments"
+                disabled={!activeCollection}
+              >
+                <Settings2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
           <TooltipProvider>
             <form onSubmit={handleSubmit} className="flex gap-3">
               <Select value={method} onValueChange={(v) => setMethod(v as HttpMethod)}>
@@ -946,6 +987,8 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EnvironmentsDialog open={envDialogOpen} onOpenChange={setEnvDialogOpen} />
     </div>
   )
 }
