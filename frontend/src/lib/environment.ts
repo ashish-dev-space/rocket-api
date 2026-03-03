@@ -1,4 +1,4 @@
-import { Environment, EnvironmentVariable } from '@/types'
+import { CollectionVar, Environment, EnvironmentVariable } from '@/types'
 
 /**
  * Substitutes environment variables in a string
@@ -24,35 +24,52 @@ export function substituteVariables(text: string, environment: Environment | nul
 }
 
 /**
- * Substitutes environment variables in URL, headers, and body
+ * Substitutes environment and collection variables in URL, headers, and body.
+ * Collection vars are applied first; environment vars override on collision.
  */
 export function substituteRequestVariables(
   url: string,
   headers: Array<{ key: string; value: string; enabled: boolean }>,
   body: string,
-  environment: Environment | null
+  environment: Environment | null,
+  collectionVars?: CollectionVar[]
 ): {
   url: string
   headers: Array<{ key: string; value: string; enabled: boolean }>
   body: string
 } {
-  // Substitute in URL
-  const substitutedUrl = substituteVariables(url, environment)
+  // Build merged variable map: collection vars first, env vars override.
+  const merged: Record<string, string> = {}
 
-  // Substitute in headers
-  const substitutedHeaders = headers.map(h => ({
-    ...h,
-    key: substituteVariables(h.key, environment),
-    value: substituteVariables(h.value, environment)
-  }))
+  if (collectionVars) {
+    for (const v of collectionVars) {
+      if (v.enabled && v.key) {
+        merged[v.key] = v.value
+      }
+    }
+  }
 
-  // Substitute in body
-  const substitutedBody = substituteVariables(body, environment)
+  if (environment?.variables) {
+    for (const v of environment.variables) {
+      if (v.enabled) {
+        merged[v.key] = v.value
+      }
+    }
+  }
+
+  const substitute = (text: string) =>
+    text.replace(/\{\{(\w+)\}\}/g, (match, varName) =>
+      merged[varName] !== undefined ? merged[varName] : match
+    )
 
   return {
-    url: substitutedUrl,
-    headers: substitutedHeaders,
-    body: substitutedBody
+    url: substitute(url),
+    headers: headers.map(h => ({
+      ...h,
+      key: substitute(h.key),
+      value: substitute(h.value),
+    })),
+    body: substitute(body),
   }
 }
 
