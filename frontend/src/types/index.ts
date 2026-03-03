@@ -93,6 +93,13 @@ export interface EnvironmentVariable {
   secret: boolean
 }
 
+export interface CollectionVar {
+  key: string
+  value: string
+  enabled: boolean
+  secret: boolean
+}
+
 export interface BruFile {
   meta: {
     name: string

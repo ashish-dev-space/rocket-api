@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { HttpRequest, HttpResponse, ApiResponse, Environment, HistoryEntry, Template, Cookie } from '@/types'
+import { HttpRequest, HttpResponse, ApiResponse, Environment, HistoryEntry, Template, Cookie, CollectionVar } from '@/types'
 
 export interface CollectionNode {
   name: string
@@ -158,6 +158,17 @@ class ApiService {
     await this.client.delete('/environments', {
       params: { collection, name }
     })
+  }
+
+  async getCollectionVariables(name: string): Promise<CollectionVar[]> {
+    const response = await this.client.get<ApiResponse<CollectionVar[]>>(
+      `/collections/${name}/variables`
+    )
+    return response.data.data ?? []
+  }
+
+  async saveCollectionVariables(name: string, variables: CollectionVar[]): Promise<void> {
+    await this.client.post(`/collections/${name}/variables`, { variables })
   }
 
   // Import/Export
