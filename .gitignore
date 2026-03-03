@@ -68,3 +68,4 @@ coverage/
 # Local Go installation (for sandboxed environments)
 go/
 go.tar.gz
+.worktrees/
