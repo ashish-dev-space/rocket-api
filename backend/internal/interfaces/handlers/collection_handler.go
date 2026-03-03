@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/yourusername/rocket-api/internal/infrastructure/repository"
 	"github.com/yourusername/rocket-api/pkg/bru"
 )
@@ -372,5 +373,68 @@ func (h *CollectionHandler) SaveEnvironment(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": "Environment saved successfully",
+	})
+}
+
+// GetCollectionVars handles GET /api/v1/collections/{name}/variables
+func (h *CollectionHandler) GetCollectionVars(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	collVars, err := h.repo.ReadCollectionVars(name)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read collection variables: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Mask secret values before sending to the client.
+	masked := make([]repository.CollectionVar, len(collVars))
+	for i, v := range collVars {
+		masked[i] = v
+		if v.Secret {
+			masked[i].Value = ""
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"data":    masked,
+		"success": true,
+		"message": "Collection variables retrieved successfully",
+	})
+}
+
+// SaveCollectionVars handles POST /api/v1/collections/{name}/variables
+func (h *CollectionHandler) SaveCollectionVars(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	var payload struct {
+		Variables []repository.CollectionVar `json:"variables"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.repo.WriteCollectionVars(name, payload.Variables); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save collection variables: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Collection variables saved successfully",
 	})
 }
