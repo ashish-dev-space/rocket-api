@@ -20,7 +20,10 @@ interface CollectionsState {
   
   fetchEnvironments: (collection: string) => Promise<void>
   setActiveEnvironment: (environment: Environment | null) => void
-  
+  createEnvironment: (collectionName: string, name: string) => Promise<void>
+  saveEnvironment: (collectionName: string, env: Environment) => Promise<void>
+  deleteEnvironment: (collectionName: string, name: string) => Promise<void>
+
   // Import/Export
   importBruno: (file: File, name?: string) => Promise<void>
   importPostman: (collection: unknown) => Promise<void>
@@ -99,9 +102,16 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   },
   
   setActiveCollection: (collection: CollectionSummary | null) => {
-    set({ activeCollection: collection })
+    set({ activeCollection: collection, activeEnvironment: null })
     if (collection) {
-      get().fetchEnvironments(collection.name)
+      get().fetchEnvironments(collection.name).then(() => {
+        // Restore last-used environment for this collection.
+        const savedName = localStorage.getItem(`rocket-api:active-env:${collection.name}`)
+        if (savedName) {
+          const env = get().environments.find(e => e.name === savedName)
+          if (env) set({ activeEnvironment: env })
+        }
+      })
     }
   },
   
@@ -125,8 +135,42 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   
   setActiveEnvironment: (environment: Environment | null) => {
     set({ activeEnvironment: environment })
+    const collection = get().activeCollection
+    if (!collection) return
+    if (environment) {
+      localStorage.setItem(`rocket-api:active-env:${collection.name}`, environment.name)
+    } else {
+      localStorage.removeItem(`rocket-api:active-env:${collection.name}`)
+    }
   },
   
+  createEnvironment: async (collectionName: string, name: string) => {
+    const newEnv: Environment = { id: crypto.randomUUID(), name, variables: [] }
+    await apiService.saveEnvironment(collectionName, newEnv)
+    await get().fetchEnvironments(collectionName)
+    // Auto-select the newly created environment.
+    const created = get().environments.find(e => e.name === name)
+    if (created) get().setActiveEnvironment(created)
+  },
+
+  saveEnvironment: async (collectionName: string, env: Environment) => {
+    await apiService.saveEnvironment(collectionName, env)
+    await get().fetchEnvironments(collectionName)
+    // Keep activeEnvironment in sync with the refreshed list.
+    if (get().activeEnvironment?.name === env.name) {
+      const updated = get().environments.find(e => e.name === env.name) ?? null
+      set({ activeEnvironment: updated })
+    }
+  },
+
+  deleteEnvironment: async (collectionName: string, name: string) => {
+    await apiService.deleteEnvironment(collectionName, name)
+    if (get().activeEnvironment?.name === name) {
+      get().setActiveEnvironment(null)
+    }
+    await get().fetchEnvironments(collectionName)
+  },
+
   importBruno: async (file: File, name?: string) => {
     set({ isLoading: true, error: null })
     try {
