@@ -108,31 +108,68 @@ export function VariableAwareUrlInput({
     return 'bg-destructive/10 text-destructive border-destructive/30'
   }
 
+  const renderHighlightedValue = () => {
+    if (!value) return null
+
+    const parts: Array<{ type: 'text' | 'token'; value: string; name?: string }> = []
+    let lastIndex = 0
+
+    for (const match of value.matchAll(tokenRegex)) {
+      const start = match.index ?? 0
+      const full = match[0]
+      const name = match[1].trim()
+      if (start > lastIndex) {
+        parts.push({ type: 'text', value: value.slice(lastIndex, start) })
+      }
+      parts.push({ type: 'token', value: full, name })
+      lastIndex = start + full.length
+    }
+    if (lastIndex < value.length) {
+      parts.push({ type: 'text', value: value.slice(lastIndex) })
+    }
+
+    return parts.map((part, idx) => {
+      if (part.type === 'text') {
+        return (
+          <span key={`text-${idx}`} className="text-foreground/85">
+            {part.value}
+          </span>
+        )
+      }
+      const token = part.name ? tokenByName.get(part.name) : null
+      const source = token?.source ?? 'missing'
+      return (
+        <span
+          key={`token-${idx}`}
+          onMouseEnter={() => token && openEditor(token)}
+          onFocus={() => token && openEditor(token)}
+          className={`pointer-events-auto rounded px-0.5 border ${tokenBadgeClass(source)}`}
+          title={source === 'missing' ? 'Missing variable' : 'Edit variable value'}
+          tabIndex={0}
+        >
+          {part.value}
+        </span>
+      )
+    })
+  }
+
   return (
     <div className="space-y-1">
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={className}
-      />
-
-      {tokens.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap min-h-[1.5rem]">
-          {tokens.map(token => (
-            <button
-              key={token.name}
-              type="button"
-              onMouseEnter={() => openEditor(token)}
-              onFocus={() => openEditor(token)}
-              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${tokenBadgeClass(token.source)}`}
-              title={token.source === 'missing' ? 'Missing variable' : 'Edit variable value'}
-            >
-              {`{{${token.name}}}`}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="relative">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`${className ?? ''} ${value ? 'text-transparent caret-foreground' : ''}`}
+        />
+        {value && (
+          <div className="absolute inset-0 px-3 flex items-center pointer-events-none overflow-hidden">
+            <div className="w-full truncate text-sm font-mono leading-none">
+              {renderHighlightedValue()}
+            </div>
+          </div>
+        )}
+      </div>
 
       {activeToken && (
         <div className="rounded-md border border-border bg-card p-2.5 shadow-sm space-y-2 max-w-sm">
