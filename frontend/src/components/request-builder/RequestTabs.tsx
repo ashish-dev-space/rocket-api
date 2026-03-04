@@ -60,7 +60,7 @@ export function RequestTabs() {
 
   return (
     <>
-      <div className="flex items-center border-b border-border/70 bg-card/70 backdrop-blur-sm overflow-x-auto shrink-0">
+      <div className="flex items-center border-b border-border/70 bg-card/70 backdrop-blur-sm overflow-x-auto overflow-y-hidden shrink-0">
         {tabs.map(tab => (
           <div
             key={tab.id}
