@@ -67,6 +67,26 @@ func TestParseContentWithBody(t *testing.T) {
 	}
 }
 
+func TestParseContentWithMultilineJSONBody(t *testing.T) {
+	original := &BruFile{}
+	original.Meta.Name = "Create User"
+	original.Meta.Type = "http"
+	original.HTTP.Method = "POST"
+	original.HTTP.URL = "https://api.example.com/users"
+	original.Body.Type = "json"
+	original.Body.Data = "{\n  \"name\": \"Alice\",\n  \"roles\": [\"admin\"]\n}"
+
+	content := GenerateContent(original)
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if parsed.Body.Data != original.Body.Data {
+		t.Errorf("body.data: got %q, want %q", parsed.Body.Data, original.Body.Data)
+	}
+}
+
 // TestParseContentBearerAuth verifies bearer auth survives the roundtrip.
 func TestParseContentBearerAuth(t *testing.T) {
 	original := &BruFile{}

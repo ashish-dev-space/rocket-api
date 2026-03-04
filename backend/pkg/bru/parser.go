@@ -24,8 +24,8 @@ type QueryParam struct {
 
 // AuthConfig represents authentication configuration
 type AuthConfig struct {
-	Type   string `json:"type"` // "none", "basic", "bearer", "api-key"
-	Basic  *struct {
+	Type  string `json:"type"` // "none", "basic", "bearer", "api-key"
+	Basic *struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	} `json:"basic,omitempty"`
@@ -112,11 +112,17 @@ func ParseContent(content string) (*BruFile, error) {
 		// Collect body data lines (preserve relative indentation by stripping 4-space prefix).
 		if inDataBlock {
 			if trimmed == "}" {
-				inDataBlock = false
-				contextStack = contextStack[:len(contextStack)-1]
-				bru.Body.Data = strings.TrimRight(strings.Join(dataLines, "\n"), "\n")
-				dataLines = nil
-				continue
+				leadingWhitespace := len(line) - len(strings.TrimLeft(line, " \t"))
+				// The parser-generated data block closes with two-space indentation:
+				// "  }". A JSON line such as "}" is emitted as "    }" and must
+				// remain part of body data.
+				if leadingWhitespace <= 2 {
+					inDataBlock = false
+					contextStack = contextStack[:len(contextStack)-1]
+					bru.Body.Data = strings.TrimRight(strings.Join(dataLines, "\n"), "\n")
+					dataLines = nil
+					continue
+				}
 			}
 			stripped := line
 			if strings.HasPrefix(line, "    ") {
