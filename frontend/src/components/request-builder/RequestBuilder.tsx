@@ -15,6 +15,7 @@ import { MonacoEditor } from '@/components/ui/monaco-editor'
 import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save, Copy, Settings2, Globe } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { EnvironmentsDialog } from '@/components/collections/EnvironmentsDialog'
+import { VariableAwareUrlInput } from '@/components/request-builder/VariableAwareUrlInput'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -106,7 +107,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const response = activeTab_?.kind === 'request' ? activeTab_.response : null
   
   // Collections store
-  const { activeCollection, environments, activeEnvironment, setActiveEnvironment } = useCollectionsStore()
+  const { activeCollection, environments, activeEnvironment, collectionVariables, setActiveEnvironment } = useCollectionsStore()
   const [envDialogOpen, setEnvDialogOpen] = useState(false)
   
   // Local state for editing
@@ -365,6 +366,60 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     }
   }
 
+  const handleSaveUrlVariable = useCallback(
+    async (name: string, nextValue: string) => {
+      const { activeCollection, activeEnvironment, environments, collectionVariables } = useCollectionsStore.getState()
+      if (!activeCollection) return
+
+      const envMatch = activeEnvironment?.variables.find(v => v.key === name)
+      if (activeEnvironment && envMatch) {
+        const updatedEnv = {
+          ...activeEnvironment,
+          variables: activeEnvironment.variables.map(v =>
+            v.key === name ? { ...v, value: nextValue, enabled: true } : v
+          ),
+        }
+        await useCollectionsStore.getState().saveEnvironment(activeCollection.name, updatedEnv)
+        const refreshedEnv = environments.find(e => e.name === activeEnvironment.name) ?? updatedEnv
+        useCollectionsStore.getState().setActiveEnvironment(refreshedEnv)
+        return
+      }
+
+      const collectionMatch = collectionVariables.find(v => v.key === name)
+      if (collectionMatch) {
+        const updatedCollectionVars = collectionVariables.map(v =>
+          v.key === name ? { ...v, value: nextValue, enabled: true } : v
+        )
+        await useCollectionsStore.getState().saveCollectionVariables(activeCollection.name, updatedCollectionVars)
+        return
+      }
+
+      if (activeEnvironment) {
+        const updatedEnv = {
+          ...activeEnvironment,
+          variables: [
+            ...activeEnvironment.variables,
+            { key: name, value: nextValue, enabled: true, secret: false },
+          ],
+        }
+        await useCollectionsStore.getState().saveEnvironment(activeCollection.name, updatedEnv)
+        const refreshedEnv = useCollectionsStore
+          .getState()
+          .environments.find(e => e.name === activeEnvironment.name) ?? updatedEnv
+        useCollectionsStore.getState().setActiveEnvironment(refreshedEnv)
+        return
+      }
+
+      await useCollectionsStore
+        .getState()
+        .saveCollectionVariables(activeCollection.name, [
+          ...collectionVariables,
+          { key: name, value: nextValue, enabled: true, secret: false },
+        ])
+    },
+    []
+  )
+
   return (
     <div ref={containerRef} className="flex flex-col h-full overflow-hidden bg-transparent">
       {/* Request Section */}
@@ -436,18 +491,29 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                 </SelectContent>
               </Select>
               
-              <div className="flex-1 relative">
-                <Input
+              <div className="flex-1">
+                <VariableAwareUrlInput
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={setUrl}
                   placeholder="Enter URL (use {{variable}} for env vars)"
-                  className="text-sm pr-20 h-9 font-mono bg-background/90"
+                  className="text-sm h-9 font-mono bg-background/90"
+                  activeEnvironment={activeEnvironment}
+                  collectionVariables={collectionVariables}
+                  onSaveVariable={async (name, value) => {
+                    try {
+                      await handleSaveUrlVariable(name, value)
+                    } catch (error) {
+                      setAlertDialog({
+                        isOpen: true,
+                        title: 'Variable Update Failed',
+                        description:
+                          error instanceof Error
+                            ? error.message
+                            : 'Unable to update variable value.',
+                      })
+                    }
+                  }}
                 />
-                {url.includes('{{') && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <span className="text-[10px] px-2 py-0.5 bg-accent text-accent-foreground rounded-full font-medium">vars</span>
-                  </div>
-                )}
               </div>
               
               <Tooltip>
