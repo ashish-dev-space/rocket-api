@@ -2,6 +2,11 @@ import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CollectionVar, Environment } from '@/types'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface VariableAwareUrlInputProps {
   value: string
@@ -78,7 +83,6 @@ export function VariableAwareUrlInput({
   const [isSaving, setIsSaving] = useState(false)
 
   const tokenByName = useMemo(() => new Map(tokens.map(t => [t.name, t])), [tokens])
-  const activeToken = editingVarName ? tokenByName.get(editingVarName) ?? null : null
 
   const openEditor = (token: UrlToken) => {
     setEditingVarName(token.name)
@@ -139,16 +143,80 @@ export function VariableAwareUrlInput({
       const token = part.name ? tokenByName.get(part.name) : null
       const source = token?.source ?? 'missing'
       return (
-        <span
+        <DropdownMenu
           key={`token-${idx}`}
-          onMouseEnter={() => token && openEditor(token)}
-          onFocus={() => token && openEditor(token)}
-          className={`pointer-events-auto rounded px-0.5 border ${tokenBadgeClass(source)}`}
-          title={source === 'missing' ? 'Missing variable' : 'Edit variable value'}
-          tabIndex={0}
+          open={editingVarName === (token?.name ?? null)}
+          onOpenChange={(open) => {
+            if (!open && editingVarName === (token?.name ?? null)) {
+              closeEditor()
+            }
+          }}
         >
-          {part.value}
-        </span>
+          <DropdownMenuTrigger asChild>
+            <span
+              onMouseEnter={() => token && openEditor(token)}
+              onFocus={() => token && openEditor(token)}
+              className={`pointer-events-auto rounded px-0.5 border cursor-pointer ${tokenBadgeClass(source)}`}
+              title={source === 'missing' ? 'Missing variable' : 'Edit variable value'}
+              tabIndex={0}
+            >
+              {part.value}
+            </span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="w-72 p-3 space-y-2"
+            onMouseEnter={() => token && openEditor(token)}
+          >
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{`{{${token?.name ?? part.name ?? ''}}}`}</span>
+              <span className="text-muted-foreground capitalize">{source}</span>
+            </div>
+            <Input
+              value={editingVarName === (token?.name ?? '') ? editingValue : token?.value ?? ''}
+              onChange={(e) => {
+                const tokenName = token?.name ?? ''
+                if (!tokenName) return
+                if (editingVarName !== tokenName) {
+                  setEditingVarName(tokenName)
+                }
+                setEditingValue(e.target.value)
+              }}
+              className="h-8 text-xs"
+              placeholder="Variable value"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={closeEditor}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={async () => {
+                  const tokenName = token?.name
+                  if (!tokenName) return
+                  if (editingVarName !== tokenName) {
+                    setEditingVarName(tokenName)
+                    setEditingValue(token?.value ?? '')
+                    await onSaveVariable(tokenName, token?.value ?? '')
+                    closeEditor()
+                    return
+                  }
+                  await handleSave()
+                }}
+                disabled={isSaving}
+              >
+                Save
+              </Button>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     })
   }
@@ -170,41 +238,6 @@ export function VariableAwareUrlInput({
           </div>
         )}
       </div>
-
-      {activeToken && (
-        <div className="rounded-md border border-border bg-card p-2.5 shadow-sm space-y-2 max-w-sm">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-medium">{`{{${activeToken.name}}}`}</span>
-            <span className="text-muted-foreground capitalize">{activeToken.source}</span>
-          </div>
-          <Input
-            value={editingValue}
-            onChange={(e) => setEditingValue(e.target.value)}
-            className="h-8 text-xs"
-            placeholder="Variable value"
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={closeEditor}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              Save
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
