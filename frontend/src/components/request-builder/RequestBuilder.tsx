@@ -495,7 +495,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                 <VariableAwareUrlInput
                   value={url}
                   onChange={setUrl}
-                  placeholder="Enter URL (use {{variable}} for env vars)"
+                  placeholder="https://api.example.com/v1/resource"
                   className="text-sm h-9 font-mono bg-background/90"
                   activeEnvironment={activeEnvironment}
                   collectionVariables={collectionVariables}
