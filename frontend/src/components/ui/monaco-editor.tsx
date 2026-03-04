@@ -58,14 +58,14 @@ export function MonacoEditor({
       inherit: true,
       rules: [],
       colors: {
-        'editor.background': '#141C2E',
-        'editor.foreground': '#DDE7FB',
-        'editorLineNumber.foreground': '#7D8BA8',
-        'editorLineNumber.activeForeground': '#C2D4FF',
-        'editorCursor.foreground': '#5DA2FF',
-        'editor.selectionBackground': '#1E4F91',
-        'editor.inactiveSelectionBackground': '#1B335D',
-        'editor.lineHighlightBackground': '#1B273F',
+        'editor.background': '#1F1F1F',
+        'editor.foreground': '#D4D4D4',
+        'editorLineNumber.foreground': '#858585',
+        'editorLineNumber.activeForeground': '#C6C6C6',
+        'editorCursor.foreground': '#0078D4',
+        'editor.selectionBackground': '#264F78',
+        'editor.inactiveSelectionBackground': '#3A3D41',
+        'editor.lineHighlightBackground': '#2A2D2E',
       },
     })
   }
