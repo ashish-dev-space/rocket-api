@@ -205,7 +205,9 @@ export const useTabsStore = create<TabsState>((set, get) => {
           t.id === state.activeTabId && t.kind === 'request'
             ? {
                 ...t,
-                request: { ...request, id: Date.now().toString() },
+                // Use a stable UUID so the RequestBuilder useEffect always fires,
+                // even when the fetch completes within the same millisecond as tab creation.
+                request: { ...request, id: crypto.randomUUID() },
                 response: null,
                 isDirty: false,
                 collectionName,
@@ -333,6 +335,8 @@ export const useTabsStore = create<TabsState>((set, get) => {
         }
 
         get().loadRequestInActiveTab(request, collectionName, path)
+      } catch (err) {
+        console.error('Failed to load request from path:', path, err)
       } finally {
         // Use get() to capture the tab id that was actually loaded into.
         const loadedTabId = get().activeTabId
