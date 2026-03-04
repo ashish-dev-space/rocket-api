@@ -37,6 +37,8 @@ interface CollectionsState {
   setError: (error: string | null) => void
 }
 
+let fetchCollectionsInFlight: Promise<CollectionSummary[]> | null = null
+
 export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   collections: [],
   collectionTree: null,
@@ -49,15 +51,23 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   error: null,
   
   fetchCollections: async () => {
+    if (fetchCollectionsInFlight) {
+      await fetchCollectionsInFlight
+      return
+    }
+
     set({ isCollectionsLoading: true, error: null })
+    fetchCollectionsInFlight = apiService.getCollections()
     try {
-      const collections = await apiService.getCollections()
+      const collections = await fetchCollectionsInFlight
       set({ collections, isCollectionsLoading: false })
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch collections',
         isCollectionsLoading: false 
       })
+    } finally {
+      fetchCollectionsInFlight = null
     }
   },
   

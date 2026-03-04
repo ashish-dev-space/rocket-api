@@ -258,6 +258,68 @@ export function CollectionOverview({ collectionName }: CollectionOverviewProps) 
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Recent Activity */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <h3 className="text-sm font-medium mb-3">Recent Activity</h3>
+                      {historyEntries.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {historyEntries.slice(0, 5).map(entry => {
+                            let path = entry.url
+                            try {
+                              const urlObj = new URL(entry.url)
+                              path = urlObj.pathname + urlObj.search
+                            } catch {
+                              // keep raw url
+                            }
+                            const timestamp = new Date(entry.timestamp).toLocaleString([], {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+
+                            return (
+                              <div
+                                key={entry.id}
+                                className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 text-xs"
+                              >
+                                <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] shrink-0 ${
+                                  entry.method === 'GET' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
+                                  entry.method === 'POST' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
+                                  entry.method === 'PUT' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' :
+                                  entry.method === 'DELETE' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
+                                  'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-400'
+                                }`}>
+                                  {entry.method}
+                                </span>
+                                <span className={`font-medium shrink-0 ${
+                                  entry.status >= 200 && entry.status < 300 ? 'text-green-600' :
+                                  entry.status >= 400 ? 'text-red-600' :
+                                  'text-yellow-600'
+                                }`}>
+                                  {entry.status}
+                                </span>
+                                <span className="truncate text-muted-foreground font-mono" title={entry.url}>
+                                  {path}
+                                </span>
+                                <span className="text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {timestamp}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 py-4 justify-center">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">No recent activity</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Right Column - 1/3 width */}
@@ -332,67 +394,6 @@ export function CollectionOverview({ collectionName }: CollectionOverviewProps) 
                 </div>
               </div>
 
-              {/* Recent Activity */}
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="text-sm font-medium mb-3">Recent Activity</h3>
-                  {historyEntries.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {historyEntries.slice(0, 5).map(entry => {
-                        let path = entry.url
-                        try {
-                          const urlObj = new URL(entry.url)
-                          path = urlObj.pathname + urlObj.search
-                        } catch {
-                          // keep raw url
-                        }
-                        const timestamp = new Date(entry.timestamp).toLocaleString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-
-                        return (
-                          <div
-                            key={entry.id}
-                            className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 text-xs"
-                          >
-                            <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] shrink-0 ${
-                              entry.method === 'GET' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' :
-                              entry.method === 'POST' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
-                              entry.method === 'PUT' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' :
-                              entry.method === 'DELETE' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' :
-                              'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-400'
-                            }`}>
-                              {entry.method}
-                            </span>
-                            <span className={`font-medium shrink-0 ${
-                              entry.status >= 200 && entry.status < 300 ? 'text-green-600' :
-                              entry.status >= 400 ? 'text-red-600' :
-                              'text-yellow-600'
-                            }`}>
-                              {entry.status}
-                            </span>
-                            <span className="truncate text-muted-foreground font-mono" title={entry.url}>
-                              {path}
-                            </span>
-                            <span className="text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {timestamp}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 py-4 justify-center">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">No recent activity</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </ScrollArea>
         </TabsContent>
