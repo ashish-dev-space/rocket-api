@@ -99,8 +99,42 @@ const createTab = (request?: HttpRequest): RequestTab => {
   }
 }
 
+const loadVersionByTabId = new Map<string, number>()
+
+const bumpLoadVersion = (tabId: string): number => {
+  const nextVersion = (loadVersionByTabId.get(tabId) ?? 0) + 1
+  loadVersionByTabId.set(tabId, nextVersion)
+  return nextVersion
+}
+
+const isLatestLoadVersion = (tabId: string, version: number): boolean =>
+  loadVersionByTabId.get(tabId) === version
+
 export const useTabsStore = create<TabsState>((set, get) => {
   const initialTab = createTab()
+  const loadRequestIntoTab = (
+    tabId: string,
+    request: HttpRequest,
+    collectionName?: string,
+    filePath?: string
+  ) =>
+    set(state => ({
+      tabs: state.tabs.map(t =>
+        t.id === tabId && t.kind === 'request'
+          ? {
+              ...t,
+              // Use a stable UUID so the RequestBuilder useEffect always fires,
+              // even when the fetch completes within the same millisecond as tab creation.
+              request: { ...request, id: crypto.randomUUID() },
+              response: null,
+              isDirty: false,
+              lastSavedSnapshot: serializePersistedRequest(request),
+              collectionName,
+              filePath,
+            }
+          : t
+      ),
+    }))
   const updateActiveRequest = (updater: (request: HttpRequest) => HttpRequest) =>
     set(state => ({
       tabs: state.tabs.map(t => {
@@ -138,6 +172,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
       if (tabs.length === 1) {
         // Keep a fresh tab when closing the last one.
         const fresh = createTab()
+        loadVersionByTabId.clear()
         set({ tabs: [fresh], activeTabId: fresh.id })
         return
       }
@@ -150,6 +185,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
           ? newTabs[Math.max(0, idx - 1)].id
           : currentActiveId
 
+      loadVersionByTabId.delete(id)
       set({ tabs: newTabs, activeTabId: newActiveId })
     },
 
@@ -195,23 +231,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
       updateActiveRequest(request => ({ ...request, auth })),
 
     loadRequestInActiveTab: (request, collectionName?, filePath?) =>
-      set(state => ({
-        tabs: state.tabs.map(t =>
-          t.id === state.activeTabId && t.kind === 'request'
-            ? {
-                ...t,
-                // Use a stable UUID so the RequestBuilder useEffect always fires,
-                // even when the fetch completes within the same millisecond as tab creation.
-                request: { ...request, id: crypto.randomUUID() },
-                response: null,
-                isDirty: false,
-                lastSavedSnapshot: serializePersistedRequest(request),
-                collectionName,
-                filePath,
-              }
-            : t
-        ),
-      })),
+      loadRequestIntoTab(get().activeTabId, request, collectionName, filePath),
 
     setActiveTabResponse: (response) =>
       set(state => ({
@@ -300,7 +320,6 @@ export const useTabsStore = create<TabsState>((set, get) => {
 
     loadRequestFromPath: async (collectionName, path) => {
       const { tabs } = get()
-      let { activeTabId } = get()
 
       // If this request is already open, just focus that tab.
       const existingTab = tabs.find(
@@ -314,16 +333,15 @@ export const useTabsStore = create<TabsState>((set, get) => {
         return
       }
 
-      // If the active tab is a collection overview, open a new request tab instead.
-      if (!tabs.find(t => t.id === activeTabId && t.kind === 'request')) {
-        const tab = createTab()
-        set(state => ({ tabs: [...state.tabs, tab], activeTabId: tab.id }))
-        activeTabId = tab.id
-      }
+      // Always open non-open requests in a new request tab.
+      const tab = createTab()
+      const targetTabId = tab.id
+      set(state => ({ tabs: [...state.tabs, tab], activeTabId: targetTabId }))
+      const loadVersion = bumpLoadVersion(targetTabId)
 
       set(state => ({
         tabs: state.tabs.map(t =>
-          t.id === activeTabId && t.kind === 'request' ? { ...t, isLoading: true } : t
+          t.id === targetTabId && t.kind === 'request' ? { ...t, isLoading: true } : t
         ),
       }))
 
@@ -359,17 +377,19 @@ export const useTabsStore = create<TabsState>((set, get) => {
           auth: bruFile.http.auth ?? { type: 'none' },
         }
 
-        get().loadRequestInActiveTab(request, collectionName, path)
+        if (!isLatestLoadVersion(targetTabId, loadVersion)) return
+        loadRequestIntoTab(targetTabId, request, collectionName, path)
       } catch (err) {
         console.error('Failed to load request from path:', path, err)
       } finally {
-        // Use get() to capture the tab id that was actually loaded into.
-        const loadedTabId = get().activeTabId
-        set(state => ({
-          tabs: state.tabs.map(t =>
-            t.id === loadedTabId && t.kind === 'request' ? { ...t, isLoading: false } : t
-          ),
-        }))
+        if (isLatestLoadVersion(targetTabId, loadVersion)) {
+          set(state => ({
+            tabs: state.tabs.map(t =>
+              t.id === targetTabId && t.kind === 'request' ? { ...t, isLoading: false } : t
+            ),
+          }))
+          loadVersionByTabId.delete(targetTabId)
+        }
       }
     },
   }

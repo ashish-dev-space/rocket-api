@@ -16,6 +16,16 @@ async function loadStore() {
   return mod.useTabsStore
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('tabs-store save-target and dirty semantics', () => {
   beforeEach(() => {
     saveRequestMock.mockReset()
@@ -129,5 +139,116 @@ describe('tabs-store save-target and dirty semantics', () => {
     expect(latest.activeTabId).toBe(tabAId)
     expect(latest.tabs.length).toBe(2)
     expect(getRequestMock).not.toHaveBeenCalled()
+  })
+
+  it('opens different requests from same collection in separate tabs', async () => {
+    const reqA = deferred<{
+      meta: { name: string }
+      http: { method: 'GET'; url: string; headers: Array<{ key: string; value: string }> }
+      body: { type: 'none'; data: '' }
+    }>()
+    const reqB = deferred<{
+      meta: { name: string }
+      http: { method: 'GET'; url: string; headers: Array<{ key: string; value: string }> }
+      body: { type: 'none'; data: '' }
+    }>()
+
+    getRequestMock.mockImplementation((collectionName: string, path: string) => {
+      if (collectionName !== 'example') throw new Error(`Unexpected collection: ${collectionName}`)
+      if (path === 'requests/a.bru') return reqA.promise
+      if (path === 'requests/b.bru') return reqB.promise
+      throw new Error(`Unexpected path: ${path}`)
+    })
+
+    const useTabsStore = await loadStore()
+    const baseTabCount = useTabsStore.getState().tabs.length
+
+    const loadA = useTabsStore.getState().loadRequestFromPath('example', 'requests/a.bru')
+    reqA.resolve({
+      meta: { name: 'Request A' },
+      http: {
+        method: 'GET',
+        url: 'https://api.example.com/a',
+        headers: [{ key: 'Accept', value: 'application/json' }],
+      },
+      body: { type: 'none', data: '' },
+    })
+    await loadA
+
+    const afterA = useTabsStore.getState()
+    const afterATabCount = afterA.tabs.length
+
+    const loadB = useTabsStore.getState().loadRequestFromPath('example', 'requests/b.bru')
+    reqB.resolve({
+      meta: { name: 'Request B' },
+      http: {
+        method: 'GET',
+        url: 'https://api.example.com/b',
+        headers: [{ key: 'Accept', value: 'application/json' }],
+      },
+      body: { type: 'none', data: '' },
+    })
+    await loadB
+
+    const latest = useTabsStore.getState()
+    const requestTabs = latest.tabs.filter(t => t.kind === 'request')
+    const matchingTabs = requestTabs.filter(
+      t =>
+        t.collectionName === 'example' &&
+        (t.filePath === 'requests/a.bru' || t.filePath === 'requests/b.bru')
+    )
+
+    expect(afterATabCount).toBe(baseTabCount + 1)
+    expect(latest.tabs.length).toBe(afterATabCount + 1)
+    expect(matchingTabs).toHaveLength(2)
+    expect(matchingTabs.map(t => t.filePath).sort()).toEqual([
+      'requests/a.bru',
+      'requests/b.bru',
+    ])
+  })
+
+  it('focuses already-open request instead of opening duplicate tab', async () => {
+    const req = deferred<{
+      meta: { name: string }
+      http: { method: 'GET'; url: string; headers: Array<{ key: string; value: string }> }
+      body: { type: 'none'; data: '' }
+    }>()
+    getRequestMock.mockImplementation((collectionName: string, path: string) => {
+      if (collectionName !== 'example') throw new Error(`Unexpected collection: ${collectionName}`)
+      if (path !== 'requests/a.bru') throw new Error(`Unexpected path: ${path}`)
+      return req.promise
+    })
+
+    const useTabsStore = await loadStore()
+    const baseTabCount = useTabsStore.getState().tabs.length
+
+    const firstLoad = useTabsStore.getState().loadRequestFromPath('example', 'requests/a.bru')
+    req.resolve({
+      meta: { name: 'Request A' },
+      http: {
+        method: 'GET',
+        url: 'https://api.example.com/a',
+        headers: [{ key: 'Accept', value: 'application/json' }],
+      },
+      body: { type: 'none', data: '' },
+    })
+    await firstLoad
+
+    const afterFirst = useTabsStore.getState()
+    const existingTab = afterFirst.tabs.find(
+      t => t.kind === 'request' && t.collectionName === 'example' && t.filePath === 'requests/a.bru'
+    )
+    if (!existingTab || existingTab.kind !== 'request') throw new Error('Expected opened request tab')
+
+    afterFirst.newTab()
+    const tempTabId = useTabsStore.getState().activeTabId
+    expect(tempTabId).not.toBe(existingTab.id)
+
+    await useTabsStore.getState().loadRequestFromPath('example', 'requests/a.bru')
+
+    const latest = useTabsStore.getState()
+    expect(latest.activeTabId).toBe(existingTab.id)
+    expect(latest.tabs.length).toBe(baseTabCount + 2)
+    expect(getRequestMock).toHaveBeenCalledTimes(1)
   })
 })
