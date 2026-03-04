@@ -366,14 +366,13 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   }
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full overflow-hidden">
+    <div ref={containerRef} className="flex flex-col h-full overflow-hidden bg-transparent">
       {/* Request Section */}
       <div 
-        className="flex flex-col overflow-hidden"
+        className="flex flex-col overflow-hidden bg-card/80"
         style={{ height: `${requestHeight}%`, minHeight: '20%', maxHeight: '80%' }}
       >
-        {/* URL Bar - Enhanced Style */}
-        <div className="px-4 pt-2 pb-4 border-b border-border bg-muted/40 shadow-sm space-y-2">
+        <div className="px-4 pt-3 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-sm space-y-2">
           <div className="flex items-center gap-2">
             <Input
               value={name}
@@ -442,11 +441,11 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="Enter URL (use {{variable}} for env vars)"
-                  className="text-sm pr-20 h-9 font-mono bg-background"
+                  className="text-sm pr-20 h-9 font-mono bg-background/90"
                 />
                 {url.includes('{{') && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <span className="text-[10px] px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-medium">vars</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-accent text-accent-foreground rounded-full font-medium">vars</span>
                   </div>
                 )}
               </div>
@@ -457,7 +456,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                     type="submit"
                     disabled={isLoading}
                     size="sm"
-                    className="bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 font-semibold px-4"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 font-semibold px-4 rounded-md shadow-sm"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -480,7 +479,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                     size="sm"
                     onClick={handleSaveRequest}
                     disabled={!activeCollection}
-                    className={`font-medium px-3 ${isDirty ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : ''}`}
+                    className={`font-medium px-3 ${isDirty ? 'border-primary/40 text-primary hover:bg-accent/60' : 'hover:bg-accent/40'}`}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {isDirty ? 'Save*' : 'Save'}
@@ -494,19 +493,18 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
           </TooltipProvider>
         </div>
 
-        {/* Request Tabs - Bruno Style */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="w-full justify-start rounded-none border-b border-border bg-transparent h-9 px-3">
-            <TabsTrigger value="params" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">
+          <TabsList className="w-full justify-start rounded-none border-b border-border/70 bg-card/60 h-9 px-3">
+            <TabsTrigger value="params" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
               Params {queryParams.filter(p => p.enabled).length > 0 && `(${queryParams.filter(p => p.enabled).length})`}
             </TabsTrigger>
-            <TabsTrigger value="headers" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">
+            <TabsTrigger value="headers" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
               Headers {headers.filter(h => h.enabled).length > 0 && `(${headers.filter(h => h.enabled).length})`}
             </TabsTrigger>
-            <TabsTrigger value="body" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">
+            <TabsTrigger value="body" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
               Body
             </TabsTrigger>
-            <TabsTrigger value="auth" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-orange-500 data-[state=active]:bg-transparent">
+            <TabsTrigger value="auth" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
               Auth {auth.type !== 'none' && '●'}
             </TabsTrigger>
           </TabsList>
@@ -521,7 +519,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                       size="icon"
                       onClick={() => updateQueryParam(index, 'enabled', !param.enabled)}
                       className={`w-4 h-4 rounded border p-0 ${
-                        param.enabled ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' : 'border-gray-300 hover:bg-gray-100'
+                        param.enabled ? 'bg-primary border-primary text-primary-foreground hover:bg-primary/90' : 'border-gray-300 hover:bg-muted'
                       }`}
                     >
                       {param.enabled && <Check className="h-3 w-3" />}
@@ -564,7 +562,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                       size="icon"
                       onClick={() => updateHeader(index, 'enabled', !header.enabled)}
                       className={`w-4 h-4 rounded border p-0 ${
-                        header.enabled ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600' : 'border-gray-300 hover:bg-gray-100'
+                        header.enabled ? 'bg-primary border-primary text-primary-foreground hover:bg-primary/90' : 'border-gray-300 hover:bg-muted'
                       }`}
                     >
                       {header.enabled && <Check className="h-3 w-3" />}
@@ -654,7 +652,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                         <button
                           onClick={() => updateFormDataField(index, 'enabled', !field.enabled)}
                           className={`w-4 h-4 rounded border flex items-center justify-center ${
-                            field.enabled ? 'bg-orange-500 border-orange-500 text-white' : 'border-gray-300'
+                            field.enabled ? 'bg-primary border-primary text-primary-foreground' : 'border-gray-300'
                           }`}
                         >
                           {field.enabled && <Check className="h-3 w-3" />}
@@ -682,7 +680,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                               className="hidden"
                               id={`file-${index}`}
                             />
-                            <label htmlFor={`file-${index}`} className="cursor-pointer text-blue-500 hover:underline ml-auto">
+                            <label htmlFor={`file-${index}`} className="cursor-pointer text-primary hover:underline ml-auto">
                               Choose
                             </label>
                           </div>
@@ -701,9 +699,9 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                         </Select>
                         <button
                           onClick={() => removeFormDataField(index)}
-                          className="p-1 hover:bg-gray-100 rounded"
+                          className="p-1 hover:bg-muted rounded"
                         >
-                          <X className="h-4 w-4 text-gray-400" />
+                          <X className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </div>
                     ))}
@@ -863,18 +861,17 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         </Tabs>
       </div>
 
-      {/* Resize Handle - Drag to resize */}
       <div
         onMouseDown={handleMouseDown}
-        className={`h-4 bg-muted border-y-2 border-border flex items-center justify-center cursor-row-resize select-none transition-colors ${
-          isDragging ? 'bg-primary/20 border-primary' : 'hover:bg-primary/10 hover:border-primary/50'
+        className={`h-4 bg-muted/50 border-y border-border/80 flex items-center justify-center cursor-row-resize select-none transition-colors ${
+          isDragging ? 'bg-primary/15 border-primary/50' : 'hover:bg-accent/70 hover:border-primary/40'
         }`}
       >
         <div className={`w-16 h-1.5 rounded-full transition-all ${isDragging ? 'w-24 h-2 bg-primary' : 'bg-muted-foreground/40'}`} />
       </div>
 
       {/* Response Section */}
-      <div className="flex-1 flex flex-col bg-muted/20 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col bg-card/65 overflow-hidden min-h-0 backdrop-blur-sm">
         {response ? (
           <>
             {/* Response Status Bar */}

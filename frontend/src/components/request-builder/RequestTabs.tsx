@@ -60,7 +60,7 @@ export function RequestTabs() {
 
   return (
     <>
-      <div className="flex items-center border-b border-border bg-muted/20 overflow-x-auto shrink-0">
+      <div className="flex items-center border-b border-border/70 bg-card/70 backdrop-blur-sm overflow-x-auto shrink-0">
         {tabs.map(tab => (
           <div
             key={tab.id}
@@ -74,10 +74,10 @@ export function RequestTabs() {
                 handleActivateTab(tab.id)
               }
             }}
-            className={`group flex items-center gap-1.5 px-3 py-2 text-xs border-r border-border cursor-pointer shrink-0 min-w-0 max-w-[180px] transition-colors ${
+            className={`group flex items-center gap-1.5 px-3 py-2 text-xs border-r border-border/70 cursor-pointer shrink-0 min-w-0 max-w-[190px] transition-all ${
               tab.id === activeTabId
-                ? 'bg-background border-b-2 border-b-orange-500 -mb-px text-foreground'
-                : 'hover:bg-muted/50 text-muted-foreground'
+                ? 'bg-background/95 border-b-2 border-b-primary -mb-px text-foreground'
+                : 'hover:bg-accent/50 text-muted-foreground'
             }`}
           >
             {isRequestTab(tab) ? (
@@ -90,7 +90,7 @@ export function RequestTabs() {
                 <span className="truncate">{tab.request.name}</span>
                 {tab.isDirty && (
                   <span
-                    className="text-orange-500 shrink-0 text-[10px]"
+                    className="text-primary shrink-0 text-[10px]"
                     aria-label="Unsaved changes"
                   >
                     ●
@@ -100,7 +100,7 @@ export function RequestTabs() {
             ) : (
               <>
                 <Database className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-                <span className="truncate">{tab.collectionName}</span>
+                <span className="truncate font-medium">{tab.collectionName}</span>
               </>
             )}
             <button
@@ -117,8 +117,8 @@ export function RequestTabs() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={newTab}
-          className="h-8 w-8 shrink-0 rounded-none"
+              onClick={newTab}
+          className="h-8 w-8 shrink-0 rounded-none hover:bg-accent/60"
           aria-label="New tab"
         >
           <Plus className="h-3.5 w-3.5" />

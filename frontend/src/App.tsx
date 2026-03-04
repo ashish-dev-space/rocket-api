@@ -32,10 +32,10 @@ function ThemeToggle() {
 
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="icon"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="h-8 w-8"
+      className="h-8 w-8 rounded-full border-border/70 bg-card/70 backdrop-blur"
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? (
@@ -75,16 +75,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" storageKey="rocket-theme" enableSystem>
-        <div className="h-screen flex flex-col bg-background font-sans text-sm">
-          {/* Minimal Header - Bruno Style */}
-          <header className="h-12 border-b border-border flex items-center px-4 bg-background shrink-0">
-            <div className="flex items-center gap-2">
+        <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/25 text-sm">
+          <header className="h-14 border-b border-border/70 flex items-center px-4 bg-card/70 backdrop-blur-md shrink-0">
+            <div className="flex items-center gap-2.5">
               <img 
                 src="/rocket.png" 
                 alt="Rocket API" 
-                className="w-6 h-6 object-contain"
+                className="w-7 h-7 object-contain"
               />
-              <span className="font-semibold text-foreground">Rocket</span>
+              <div className="leading-tight">
+                <p className="font-semibold tracking-tight text-foreground">Rocket</p>
+                <p className="text-[11px] text-muted-foreground">API Workspace</p>
+              </div>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-2">
@@ -92,13 +94,10 @@ function App() {
             </div>
           </header>
 
-          {/* Main Content - Three Panel Layout */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Left Panel - Collections (Bruno Style) */}
             <CollectionsSidebar />
             
-            {/* Center Panel - Request/Response or Collection Overview */}
-            <main className="flex-1 flex flex-col min-w-0 bg-background">
+            <main className="flex-1 flex flex-col min-w-0 bg-transparent">
               <RequestTabs />
               {activeTab && !isRequestTab(activeTab) ? (
                 <CollectionOverview collectionName={activeTab.collectionName} />

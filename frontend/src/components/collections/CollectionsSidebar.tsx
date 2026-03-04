@@ -608,9 +608,9 @@ export function CollectionsSidebar() {
 
   return (
     <TooltipProvider>
-    <aside className="w-64 border-r border-border bg-background flex flex-col shrink-0">
+    <aside className="w-72 border-r border-border/70 bg-card/80 backdrop-blur-sm flex flex-col shrink-0">
       {/* Sidebar Header */}
-      <div className="h-11 border-b border-border flex items-center px-2 gap-1 bg-muted/30">
+      <div className="h-12 border-b border-border/70 flex items-center px-2 gap-1 bg-card/90">
         <Button 
           variant={activeTab === 'collections' ? 'secondary' : 'ghost'}
           size="sm"
@@ -659,7 +659,7 @@ export function CollectionsSidebar() {
       </div>
 
       {/* Search */}
-      <div className="p-2 border-b border-border">
+      <div className="p-2 border-b border-border/70 bg-muted/20">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -685,7 +685,7 @@ export function CollectionsSidebar() {
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : activeTab === 'collections' ? (
-          <div className="py-1">
+          <div className="py-2 px-1">
             {filteredCollections.map((collection) => {
               const isExpanded = expandedCollectionId === collection.id
               const isActive = activeCollection?.id === collection.id
@@ -694,13 +694,13 @@ export function CollectionsSidebar() {
                 <div key={collection.id}>
                   {/* Collection Header */}
                   <div
-                    className={`flex items-center gap-1 hover:bg-accent/50 transition-colors group ${
-                      isActive ? 'bg-accent/40' : ''
+                    className={`flex items-center gap-1 rounded-md hover:bg-accent/60 transition-colors group ${
+                      isActive ? 'bg-accent/70' : ''
                     }`}
                   >
                     <button
                       type="button"
-                      className="flex items-center gap-1 flex-1 min-w-0 px-2 py-1.5 text-left"
+                      className="flex items-center gap-1 flex-1 min-w-0 px-2 py-2 text-left"
                       onClick={() => {
                         toggleCollection(collection.id)
                         setActiveCollection(collection)
@@ -789,7 +789,7 @@ export function CollectionsSidebar() {
 
                   {/* Collection Tree */}
                   {isExpanded && isActive && collectionTree?.children && (
-                    <div className="border-l border-border/50 ml-4">
+                    <div className="border-l border-border/60 ml-4 mt-1">
                       {collectionTree.children.map(child => renderTreeNode(child, 0, activeTabFilePath))}
                     </div>
                   )}
@@ -908,7 +908,7 @@ export function CollectionsSidebar() {
       </div>
 
       {/* Sidebar Footer */}
-      <div className="border-t border-border p-2 space-y-1 bg-muted/20">
+      <div className="border-t border-border/70 p-2 space-y-1 bg-card/90">
         <Button 
           variant="ghost" 
           size="sm" 
