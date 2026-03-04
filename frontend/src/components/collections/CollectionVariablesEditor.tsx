@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCollectionsStore } from '@/store/collections'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,12 @@ export function CollectionVariablesEditor() {
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [revealedSecrets, setRevealedSecrets] = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    setEditingVars(collectionVariables.map(v => ({ ...v })))
+    setIsDirty(false)
+    setRevealedSecrets(new Set())
+  }, [activeCollection?.name, collectionVariables])
 
   const handleVarChange = (index: number, field: keyof CollectionVar, value: string | boolean) => {
     setEditingVars(vars => vars.map((v, i) => i === index ? { ...v, [field]: value } : v))
