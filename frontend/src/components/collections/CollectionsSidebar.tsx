@@ -114,11 +114,18 @@ export function CollectionsSidebar() {
   
   const { loadRequestFromPath, loadRequestInActiveTab, openCollectionOverview } = useTabsStore()
 
-  // Read the active tab's file path for highlighting the active request.
-  const activeTabFilePath = useTabsStore(state => {
+  const activeTabContext = useTabsStore(state => {
     const tab = state.tabs.find(t => t.id === state.activeTabId)
-    return tab && tab.kind === 'request' ? tab.filePath ?? null : null
+    if (!tab || tab.kind !== 'request') {
+      return { collectionName: null, filePath: null }
+    }
+    return {
+      collectionName: tab.collectionName ?? null,
+      filePath: tab.filePath ?? null,
+    }
   })
+  const activeTabCollectionName = activeTabContext.collectionName
+  const activeTabFilePath = activeTabContext.filePath
 
   useEffect(() => {
     fetchCollections()
@@ -136,6 +143,64 @@ export function CollectionsSidebar() {
       fetchHistory()
     }
   }, [activeTab, fetchHistory])
+
+  // Keep the matching collection expanded whenever an opened request tab becomes active.
+  useEffect(() => {
+    if (!activeTabCollectionName) return
+    const matchingCollection = collections.find(c => c.name === activeTabCollectionName)
+    if (!matchingCollection) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpandedCollectionId(prev =>
+      prev === matchingCollection.id ? prev : matchingCollection.id
+    )
+  }, [activeTabCollectionName, collections])
+
+  // Expand parent folders so the active request is visible and selected in the tree.
+  useEffect(() => {
+    if (!activeTabFilePath || !collectionTree?.children) return
+    if (!activeTabCollectionName || activeCollection?.name !== activeTabCollectionName) return
+
+    const findFolderAncestors = (
+      nodes: TreeNode[],
+      requestPath: string,
+      parentFolders: string[]
+    ): string[] | null => {
+      for (const node of nodes) {
+        if (node.type === 'request' && node.path === requestPath) {
+          return parentFolders
+        }
+        if ((node.type === 'folder' || node.type === 'collection') && node.children) {
+          const folderKey = node.path || node.name
+          const nextParents =
+            node.type === 'folder' ? [...parentFolders, folderKey] : parentFolders
+          const result = findFolderAncestors(node.children, requestPath, nextParents)
+          if (result) return result
+        }
+      }
+      return null
+    }
+
+    const folderAncestors = findFolderAncestors(collectionTree.children, activeTabFilePath, [])
+    if (!folderAncestors) return
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpandedFolders(prev => {
+      let changed = false
+      const next = new Set(prev)
+      for (const folder of folderAncestors) {
+        if (!next.has(folder)) {
+          next.add(folder)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [
+    activeCollection?.name,
+    activeTabCollectionName,
+    activeTabFilePath,
+    collectionTree,
+  ])
 
   const toggleCollection = (id: string) => {
     setExpandedCollectionId(prev => prev === id ? null : id)
