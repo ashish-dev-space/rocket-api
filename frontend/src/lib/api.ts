@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import { HttpRequest, HttpResponse, ApiResponse, Environment, HistoryEntry, Template, Cookie, CollectionVar } from '@/types'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export interface CollectionNode {
   name: string
@@ -18,18 +19,20 @@ export interface CollectionSummary {
 
 class ApiService {
   private client: AxiosInstance
+  private readonly healthUrl: string
 
   constructor() {
+    const runtimeConfig = getRuntimeConfig()
+    this.healthUrl = runtimeConfig.healthUrl
     this.client = axios.create({
-      baseURL: 'http://localhost:8080/api/v1',
+      baseURL: runtimeConfig.apiBaseUrl,
       timeout: 5000,
     })
   }
 
   async checkBackendHealth(): Promise<boolean> {
     try {
-      // Health endpoint is at root, not under /api/v1
-      await axios.get('http://localhost:8080/health', { timeout: 2000 })
+      await axios.get(this.healthUrl, { timeout: 2000 })
       return true
     } catch {
       return false

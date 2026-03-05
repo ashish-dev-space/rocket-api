@@ -144,6 +144,24 @@ const bumpLoadVersion = (tabId: string): number => {
 const isLatestLoadVersion = (tabId: string, version: number): boolean =>
   loadVersionByTabId.get(tabId) === version
 
+export const sanitizeTabsForPersistence = (tabs: Tab[]): Tab[] =>
+  tabs.map(tab =>
+    tab.kind === 'request'
+      ? {
+          ...tab,
+          response: null,
+          isLoading: false,
+        }
+      : tab
+  )
+
+export const toPersistedTabsSession = (
+  state: Pick<TabsState, 'tabs' | 'activeTabId'>
+): Pick<TabsState, 'tabs' | 'activeTabId'> => ({
+  tabs: sanitizeTabsForPersistence(state.tabs),
+  activeTabId: state.activeTabId,
+})
+
 export const useTabsStore = create<TabsState>()(
   persist((set, get) => {
   const initialSession = createInitialSession()
@@ -443,10 +461,7 @@ export const useTabsStore = create<TabsState>()(
 },
 {
   name: TABS_SESSION_STORAGE_KEY,
-  partialize: (state) => ({
-    tabs: state.tabs,
-    activeTabId: state.activeTabId,
-  }),
+  partialize: (state) => toPersistedTabsSession(state),
   merge: (persistedState, currentState) => ({
     ...currentState,
     ...normalizeSession(persistedState as Partial<Pick<TabsState, 'tabs' | 'activeTabId'>>),

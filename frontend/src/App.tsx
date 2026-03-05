@@ -11,8 +11,10 @@ import { useCollectionsStore } from '@/store/collections'
 import { useTabsStore, isRequestTab } from '@/store/tabs-store'
 import { Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getRuntimeConfig } from '@/lib/runtime-config'
 
 const queryClient = new QueryClient()
+const runtimeConfig = getRuntimeConfig()
 
 // Theme Toggle Component
 function ThemeToggle() {
@@ -59,7 +61,7 @@ function App() {
   const activeTab = useTabsStore(state => state.tabs.find(t => t.id === state.activeTabId))
   
   // WebSocket for real-time updates
-  useWebSocket('ws://localhost:8080/ws', {
+  useWebSocket(runtimeConfig.wsUrl, {
     onMessage: (message) => {
       if (message.type === 'file_change') {
         console.log('File changed:', message)

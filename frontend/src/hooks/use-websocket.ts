@@ -15,9 +15,11 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const isConnectedRef = useRef(false)
+  const shouldReconnectRef = useRef(true)
+  const isUnmountedRef = useRef(false)
   const optionsRef = useRef(options)
   const connectRef = useRef<(() => void) | null>(null)
   
@@ -27,22 +29,27 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   }, [options])
 
   const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
       reconnectTimeoutRef.current = null
     }
 
     if (wsRef.current) {
+      wsRef.current.onclose = null
       wsRef.current.close()
       wsRef.current = null
     }
     setIsConnected(false)
+    isConnectedRef.current = false
   }, [])
 
   const connect = useCallback(() => {
+    if (isUnmountedRef.current) return
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return
     }
+    shouldReconnectRef.current = true
 
     try {
       const ws = new WebSocket(url)
@@ -73,10 +80,12 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
         isConnectedRef.current = false
         optionsRef.current.onDisconnect?.()
         
-        // Attempt to reconnect after 5 seconds (longer delay to reduce noise)
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectRef.current?.()
-        }, 5000)
+        if (shouldReconnectRef.current && !isUnmountedRef.current) {
+          // Attempt to reconnect after 5 seconds.
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connectRef.current?.()
+          }, 5000)
+        }
       }
 
       ws.onerror = (error) => {
@@ -105,9 +114,11 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   }, [])
 
   useEffect(() => {
+    isUnmountedRef.current = false
     connect()
 
     return () => {
+      isUnmountedRef.current = true
       disconnect()
     }
   }, [connect, disconnect])

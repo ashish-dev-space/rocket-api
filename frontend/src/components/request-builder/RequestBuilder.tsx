@@ -11,6 +11,7 @@ import { useCollectionsStore } from '@/store/collections'
 import { useHistoryStore } from '@/store/history'
 import { substituteRequestVariables } from '@/lib/environment'
 import { METHOD_TEXT_COLORS } from '@/lib/constants'
+import { applyApiKeyToQueryParams } from '@/lib/request-auth'
 import { MonacoEditor } from '@/components/ui/monaco-editor'
 import { Play, Loader2, Plus, Check, X, FileText, Lock, Key, User, Upload, Save, Copy, Settings2, Globe } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -226,6 +227,11 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         }
       }
 
+      const finalQueryParams = applyApiKeyToQueryParams(
+        queryParams.filter(q => q.enabled),
+        auth
+      )
+
       const request: HttpRequest = {
         id: Date.now().toString(),
         name: 'Untitled Request',
@@ -233,7 +239,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         url: substituted.url,
         headers: finalHeaders.filter(h => h.enabled),
         body: { ...body, content: substituted.body },
-        queryParams: queryParams.filter(q => q.enabled),
+        queryParams: finalQueryParams,
         pathParams,
         auth
       }

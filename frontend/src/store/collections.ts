@@ -154,15 +154,15 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   fetchEnvironments: async (collection: string) => {
     try {
       const envNames = await apiService.getEnvironments(collection)
-      const envs: Environment[] = []
-      for (const name of envNames) {
-        try {
-          const env = await apiService.getEnvironment(collection, name)
-          envs.push(env)
-        } catch {
-          // Skip environments that fail to load
-        }
-      }
+      const results = await Promise.allSettled(
+        envNames.map(name => apiService.getEnvironment(collection, name))
+      )
+      const envs = results
+        .filter(
+          (result): result is PromiseFulfilledResult<Environment> =>
+            result.status === 'fulfilled'
+        )
+        .map(result => result.value)
       set({ environments: envs })
     } catch (error) {
       console.error('Failed to fetch environments:', error)
