@@ -13,6 +13,7 @@ import (
 type Header struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+	Enabled bool `json:"enabled"`
 }
 
 // QueryParam represents a URL query parameter
@@ -51,6 +52,7 @@ type BruFile struct {
 		URL         string       `json:"url"`
 		Headers     []Header     `json:"headers"`
 		QueryParams []QueryParam `json:"queryParams,omitempty"`
+		PathParams  []QueryParam `json:"pathParams,omitempty"`
 		Body        string       `json:"body,omitempty"`
 		Auth        *AuthConfig  `json:"auth,omitempty"`
 	} `json:"http"`
@@ -81,11 +83,13 @@ func ParseContent(content string) (*BruFile, error) {
 			URL         string       `json:"url"`
 			Headers     []Header     `json:"headers"`
 			QueryParams []QueryParam `json:"queryParams,omitempty"`
+			PathParams  []QueryParam `json:"pathParams,omitempty"`
 			Body        string       `json:"body,omitempty"`
 			Auth        *AuthConfig  `json:"auth,omitempty"`
 		}{
 			Headers:     []Header{},
 			QueryParams: []QueryParam{},
+			PathParams:  []QueryParam{},
 		},
 		Vars:       make(map[string]any),
 		Assertions: []string{},
@@ -97,6 +101,7 @@ func ParseContent(content string) (*BruFile, error) {
 	// dataLines accumulates indented lines inside a data { } block.
 	var dataLines []string
 	inDataBlock := false
+	dataBlockIndent := 0
 
 	currentContext := func() string {
 		if len(contextStack) == 0 {
@@ -113,20 +118,23 @@ func ParseContent(content string) (*BruFile, error) {
 		if inDataBlock {
 			if trimmed == "}" {
 				leadingWhitespace := len(line) - len(strings.TrimLeft(line, " \t"))
-				// The parser-generated data block closes with two-space indentation:
-				// "  }". A JSON line such as "}" is emitted as "    }" and must
-				// remain part of body data.
-				if leadingWhitespace <= 2 {
+				// Close body capture only when indentation matches the block opener.
+				// This preserves inner JSON object closers at deeper indentation.
+				if leadingWhitespace == dataBlockIndent {
 					inDataBlock = false
 					contextStack = contextStack[:len(contextStack)-1]
 					bru.Body.Data = strings.TrimRight(strings.Join(dataLines, "\n"), "\n")
 					dataLines = nil
+					dataBlockIndent = 0
 					continue
 				}
 			}
 			stripped := line
 			if strings.HasPrefix(line, "    ") {
 				stripped = line[4:]
+			} else if strings.HasPrefix(line, "  ") {
+				// Bruno inline body blocks (`body:json {`) typically indent data by two spaces.
+				stripped = line[2:]
 			}
 			dataLines = append(dataLines, stripped)
 			continue
@@ -149,8 +157,15 @@ func ParseContent(content string) (*BruFile, error) {
 		if name, ok := strings.CutSuffix(trimmed, "{"); ok {
 			blockName := strings.TrimSpace(name)
 			contextStack = append(contextStack, blockName)
+			blockIndent := len(line) - len(strings.TrimLeft(line, " \t"))
 			if blockName == "data" {
 				inDataBlock = true
+				dataBlockIndent = blockIndent
+			}
+			if bodyType, ok := strings.CutPrefix(blockName, "body:"); ok {
+				bru.Body.Type = strings.TrimSpace(bodyType)
+				inDataBlock = true
+				dataBlockIndent = blockIndent
 			}
 			if method, ok := httpMethodForBlock(blockName); ok {
 				bru.HTTP.Method = method
@@ -184,20 +199,29 @@ func ParseContent(content string) (*BruFile, error) {
 			}
 
 		case "headers":
-			// "Key: Value" — split on first colon only.
-			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+			if key, value, enabled, ok := parseEntryLine(trimmed); ok {
 				bru.HTTP.Headers = append(bru.HTTP.Headers, Header{
-					Key:   strings.TrimSpace(parts[0]),
-					Value: strings.TrimSpace(parts[1]),
+					Key:     key,
+					Value:   value,
+					Enabled: enabled,
 				})
 			}
 
 		case "query", "params:query":
-			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
+			if key, value, enabled, ok := parseEntryLine(trimmed); ok {
 				bru.HTTP.QueryParams = append(bru.HTTP.QueryParams, QueryParam{
-					Key:     strings.TrimSpace(parts[0]),
-					Value:   strings.TrimSpace(parts[1]),
-					Enabled: true,
+					Key:     key,
+					Value:   value,
+					Enabled: enabled,
+				})
+			}
+
+		case "path", "params:path":
+			if key, value, enabled, ok := parseEntryLine(trimmed); ok {
+				bru.HTTP.PathParams = append(bru.HTTP.PathParams, QueryParam{
+					Key:     key,
+					Value:   value,
+					Enabled: enabled,
 				})
 			}
 
@@ -343,6 +367,29 @@ func configureAuth(bru *BruFile, authType string) {
 	}
 }
 
+func parseEntryLine(line string) (key, value string, enabled bool, ok bool) {
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) != 2 {
+		return "", "", false, false
+	}
+
+	rawKey := strings.TrimSpace(parts[0])
+	if rawKey == "" {
+		return "", "", false, false
+	}
+
+	enabled = true
+	if strings.HasPrefix(rawKey, "~") {
+		enabled = false
+		rawKey = strings.TrimSpace(strings.TrimPrefix(rawKey, "~"))
+		if rawKey == "" {
+			return "", "", false, false
+		}
+	}
+
+	return rawKey, strings.TrimSpace(parts[1]), enabled, true
+}
+
 // Write writes a BruFile to disk
 func Write(filepath string, bru *BruFile) error {
 	content := GenerateContent(bru)
@@ -371,9 +418,24 @@ func GenerateContent(bru *BruFile) string {
 	if len(bru.HTTP.QueryParams) > 0 {
 		content.WriteString("  query {\n")
 		for _, q := range bru.HTTP.QueryParams {
-			if q.Enabled {
-				fmt.Fprintf(&content, "    %s: %s\n", q.Key, q.Value)
+			prefix := ""
+			if !q.Enabled {
+				prefix = "~"
 			}
+			fmt.Fprintf(&content, "    %s%s: %s\n", prefix, q.Key, q.Value)
+		}
+		content.WriteString("  }\n")
+	}
+
+	// Path Params
+	if len(bru.HTTP.PathParams) > 0 {
+		content.WriteString("  params:path {\n")
+		for _, p := range bru.HTTP.PathParams {
+			prefix := ""
+			if !p.Enabled {
+				prefix = "~"
+			}
+			fmt.Fprintf(&content, "    %s%s: %s\n", prefix, p.Key, p.Value)
 		}
 		content.WriteString("  }\n")
 	}
@@ -382,7 +444,11 @@ func GenerateContent(bru *BruFile) string {
 	if len(bru.HTTP.Headers) > 0 {
 		content.WriteString("  headers {\n")
 		for _, h := range bru.HTTP.Headers {
-			fmt.Fprintf(&content, "    %s: %s\n", h.Key, h.Value)
+			prefix := ""
+			if !h.Enabled {
+				prefix = "~"
+			}
+			fmt.Fprintf(&content, "    %s%s: %s\n", prefix, h.Key, h.Value)
 		}
 		content.WriteString("  }\n")
 	}

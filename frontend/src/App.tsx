@@ -49,7 +49,13 @@ function ThemeToggle() {
 }
 
 function App() {
-  const { fetchCollections, fetchCollectionTree, activeCollection } = useCollectionsStore()
+  const {
+    fetchCollections,
+    fetchCollectionTree,
+    activeCollection,
+    collections,
+    setActiveCollection,
+  } = useCollectionsStore()
   const activeTab = useTabsStore(state => state.tabs.find(t => t.id === state.activeTabId))
   
   // WebSocket for real-time updates
@@ -72,6 +78,30 @@ function App() {
       console.log('WebSocket disconnected - real-time sync disabled')
     }
   })
+
+  // Restore active collection/tree context from the currently active tab after reload.
+  useEffect(() => {
+    if (!activeTab || collections.length === 0) return
+
+    const targetCollectionName = activeTab.collectionName
+    if (!targetCollectionName) return
+
+    const targetCollection = collections.find(c => c.name === targetCollectionName)
+    if (!targetCollection) return
+
+    if (activeCollection?.name !== targetCollection.name) {
+      setActiveCollection(targetCollection)
+      return
+    }
+
+    fetchCollectionTree(targetCollection.name)
+  }, [
+    activeTab,
+    activeCollection?.name,
+    collections,
+    fetchCollectionTree,
+    setActiveCollection,
+  ])
 
   return (
     <QueryClientProvider client={queryClient}>

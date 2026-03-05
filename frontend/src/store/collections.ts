@@ -38,6 +38,7 @@ interface CollectionsState {
 }
 
 let fetchCollectionsInFlight: Promise<CollectionSummary[]> | null = null
+const ACTIVE_COLLECTION_STORAGE_KEY = 'rocket-api:active-collection'
 
 export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   collections: [],
@@ -61,6 +62,15 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
     try {
       const collections = await fetchCollectionsInFlight
       set({ collections, isCollectionsLoading: false })
+      if (!get().activeCollection) {
+        const savedCollectionName = localStorage.getItem(ACTIVE_COLLECTION_STORAGE_KEY)
+        if (savedCollectionName) {
+          const savedCollection = collections.find(c => c.name === savedCollectionName)
+          if (savedCollection) {
+            get().setActiveCollection(savedCollection)
+          }
+        }
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch collections',
@@ -103,12 +113,16 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   deleteCollection: async (name: string) => {
     set({ isCollectionsLoading: true, error: null })
     try {
+      const wasActive = get().activeCollection?.name === name
       await apiService.deleteCollection(name)
       set((state) => ({ 
         collections: state.collections.filter(c => c.name !== name),
         activeCollection: state.activeCollection?.name === name ? null : state.activeCollection,
         isCollectionsLoading: false 
       }))
+      if (wasActive) {
+        localStorage.removeItem(ACTIVE_COLLECTION_STORAGE_KEY)
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to delete collection',
@@ -119,6 +133,11 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   
   setActiveCollection: (collection: CollectionSummary | null) => {
     set({ activeCollection: collection, activeEnvironment: null, collectionVariables: [] })
+    if (collection) {
+      localStorage.setItem(ACTIVE_COLLECTION_STORAGE_KEY, collection.name)
+    } else {
+      localStorage.removeItem(ACTIVE_COLLECTION_STORAGE_KEY)
+    }
     if (collection) {
       get().fetchEnvironments(collection.name).then(() => {
         // Restore last-used environment for this collection.

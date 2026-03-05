@@ -93,6 +93,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     updateActiveUrl,
     updateActiveHeaders,
     updateActiveQueryParams,
+    updateActivePathParams,
     updateActiveBody,
     updateActiveAuth,
     setActiveTabResponse,
@@ -116,6 +117,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
   const [url, setUrl] = useState('')
   const [headers, setHeaders] = useState<Header[]>([])
   const [queryParams, setQueryParams] = useState<QueryParam[]>([])
+  const [pathParams, setPathParams] = useState<QueryParam[]>([])
   const [body, setBody] = useState<RequestBody>({ type: 'none', content: '' })
   const [auth, setAuth] = useState<AuthConfig>({ type: 'none' })
   
@@ -127,6 +129,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       setUrl(currentRequest.url)
       setHeaders(currentRequest.headers)
       setQueryParams(currentRequest.queryParams)
+      setPathParams(currentRequest.pathParams ?? [])
       setBody(currentRequest.body)
       setAuth(currentRequest.auth)
     }
@@ -148,13 +151,14 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     updateActiveUrl(url)
     updateActiveHeaders(headers)
     updateActiveQueryParams(queryParams)
+    updateActivePathParams(pathParams)
     updateActiveBody(body)
     updateActiveAuth(auth)
 
     await saveActiveTab(activeCollection.name)
     // Refresh the sidebar tree so the saved request appears immediately.
     useCollectionsStore.getState().fetchCollectionTree(activeCollection.name)
-  }, [activeCollection, name, method, url, headers, queryParams, body, auth, updateActiveName, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActiveBody, updateActiveAuth, saveActiveTab])
+  }, [activeCollection, name, method, url, headers, queryParams, pathParams, body, auth, updateActiveName, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActivePathParams, updateActiveBody, updateActiveAuth, saveActiveTab])
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -167,15 +171,26 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     updateActiveUrl(url)
     updateActiveHeaders(headers)
     updateActiveQueryParams(queryParams)
+    updateActivePathParams(pathParams)
     updateActiveBody(body)
     updateActiveAuth(auth)
+
+    const applyPathParamsToUrl = (inputUrl: string): string => {
+      let output = inputUrl
+      const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      for (const param of pathParams) {
+        if (!param.enabled || !param.key) continue
+        output = output.replace(new RegExp(`:${escapeRegExp(param.key)}\\b`, 'g'), param.value)
+      }
+      return output
+    }
 
     // Get active environment and collection variables from collections store.
     const { activeEnvironment, collectionVariables } = useCollectionsStore.getState()
 
     // Substitute environment variables and collection variables.
     const substituted = substituteRequestVariables(
-      url,
+      applyPathParamsToUrl(url),
       headers,
       body.content,
       activeEnvironment,
@@ -219,6 +234,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         headers: finalHeaders.filter(h => h.enabled),
         body: { ...body, content: substituted.body },
         queryParams: queryParams.filter(q => q.enabled),
+        pathParams,
         auth
       }
 
@@ -259,7 +275,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     } finally {
       setActiveTabLoading(false)
     }
-  }, [url, method, headers, queryParams, body, auth, onRequestSent, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActiveBody, updateActiveAuth, setActiveTabLoading, setActiveTabResponse])
+  }, [url, method, headers, queryParams, pathParams, body, auth, onRequestSent, updateActiveMethod, updateActiveUrl, updateActiveHeaders, updateActiveQueryParams, updateActivePathParams, updateActiveBody, updateActiveAuth, setActiveTabLoading, setActiveTabResponse])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -299,6 +315,14 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
       i === index ? { ...p, [field]: value } : p
     )
     setQueryParams(newParams)
+  }
+  const addPathParam = () => setPathParams([...pathParams, { key: '', value: '', enabled: true }])
+  const removePathParam = (index: number) => setPathParams(pathParams.filter((_, i) => i !== index))
+  const updatePathParam = (index: number, field: 'key' | 'value' | 'enabled', value: string | boolean) => {
+    const newParams = pathParams.map((p, i) =>
+      i === index ? { ...p, [field]: value } : p
+    )
+    setPathParams(newParams)
   }
 
   // Form data management
@@ -499,6 +523,24 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                   className="text-sm h-9 font-mono bg-background/90"
                   activeEnvironment={activeEnvironment}
                   collectionVariables={collectionVariables}
+                  pathParams={pathParams}
+                  queryParams={queryParams}
+                  onSaveParamToken={async (tokenName, tokenValue, target) => {
+                    const upsert = (prev: QueryParam[]) => {
+                      const idx = prev.findIndex(p => p.key === tokenName)
+                      if (idx >= 0) {
+                        return prev.map((p, i) =>
+                          i === idx ? { ...p, value: tokenValue, enabled: true } : p
+                        )
+                      }
+                      return [...prev, { key: tokenName, value: tokenValue, enabled: true }]
+                    }
+                    if (target === 'path') {
+                      setPathParams(prev => upsert(prev))
+                      return
+                    }
+                    setQueryParams(prev => upsert(prev))
+                  }}
                   onSaveVariable={async (name, value) => {
                     try {
                       await handleSaveUrlVariable(name, value)
@@ -562,7 +604,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <TabsList className="w-full justify-start rounded-none border-b border-border/70 bg-card/60 h-9 px-3">
             <TabsTrigger value="params" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
-              Params {queryParams.filter(p => p.enabled).length > 0 && `(${queryParams.filter(p => p.enabled).length})`}
+              Params {(queryParams.filter(p => p.enabled).length + pathParams.filter(p => p.enabled).length) > 0 && `(${queryParams.filter(p => p.enabled).length + pathParams.filter(p => p.enabled).length})`}
             </TabsTrigger>
             <TabsTrigger value="headers" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
               Headers {headers.filter(h => h.enabled).length > 0 && `(${headers.filter(h => h.enabled).length})`}
@@ -578,6 +620,47 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
           <div className="flex-1 overflow-auto p-3">
             <TabsContent value="params" className="mt-0 h-full">
               <div className="space-y-2">
+                <div className="text-[11px] font-medium text-muted-foreground">Path Params</div>
+                {pathParams.map((param, index) => (
+                  <div key={`path-${index}`} className="flex gap-2 items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => updatePathParam(index, 'enabled', !param.enabled)}
+                      className={`w-4 h-4 rounded border p-0 ${
+                        param.enabled ? 'bg-primary border-primary text-primary-foreground hover:bg-primary/90' : 'border-gray-300 hover:bg-muted'
+                      }`}
+                    >
+                      {param.enabled && <Check className="h-3 w-3" />}
+                    </Button>
+                    <Input
+                      placeholder="Path Key (e.g. customerId)"
+                      value={param.key}
+                      onChange={(e) => updatePathParam(index, 'key', e.target.value)}
+                      className="flex-1 text-xs h-8"
+                    />
+                    <Input
+                      placeholder="Value"
+                      value={param.value}
+                      onChange={(e) => updatePathParam(index, 'value', e.target.value)}
+                      className="flex-1 text-xs h-8"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removePathParam(index)}
+                      className="h-7 w-7"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="ghost" size="sm" onClick={addPathParam} className="text-xs">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Path Param
+                </Button>
+
+                <div className="text-[11px] font-medium text-muted-foreground pt-2">Query Params</div>
                 {queryParams.map((param, index) => (
                   <div key={index} className="flex gap-2 items-center">
                     <Button
@@ -614,7 +697,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                 ))}
                 <Button variant="ghost" size="sm" onClick={addQueryParam} className="text-xs">
                   <Plus className="h-3 w-3 mr-1" />
-                  Add Param
+                  Add Query Param
                 </Button>
               </div>
             </TabsContent>

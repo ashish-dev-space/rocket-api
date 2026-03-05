@@ -1,6 +1,7 @@
 package bru
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,7 @@ func TestParseContentRoundtrip(t *testing.T) {
 	original.HTTP.Method = "GET"
 	original.HTTP.URL = "https://api.example.com/users"
 	original.HTTP.Headers = []Header{
-		{Key: "Accept", Value: "application/json"},
+		{Key: "Accept", Value: "application/json", Enabled: true},
 	}
 	original.HTTP.QueryParams = []QueryParam{
 		{Key: "page", Value: "1", Enabled: true},
@@ -170,5 +171,210 @@ auth:bearer {
 	}
 	if parsed.HTTP.Auth.Bearer == nil || parsed.HTTP.Auth.Bearer.Token != "{{BearerToken}}" {
 		t.Fatalf("http.auth.bearer: got %+v", parsed.HTTP.Auth.Bearer)
+	}
+}
+
+func TestParseContentBrunoInlineBodyBlock(t *testing.T) {
+	content := `meta {
+  name: Update Display Profile
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{BASE_URL}}/api/v3/accounts/profile
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+      "display_name": "Test Display Name 1",
+      "use_erp_name": true
+  }
+}
+`
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if parsed.HTTP.Method != "PATCH" {
+		t.Fatalf("http.method: got %q, want %q", parsed.HTTP.Method, "PATCH")
+	}
+	if parsed.Body.Type != "json" {
+		t.Fatalf("body.type: got %q, want %q", parsed.Body.Type, "json")
+	}
+	if !strings.Contains(parsed.Body.Data, `"display_name": "Test Display Name 1"`) {
+		t.Fatalf("body.data missing display_name, got:\n%s", parsed.Body.Data)
+	}
+	if !strings.Contains(parsed.Body.Data, `"use_erp_name": true`) {
+		t.Fatalf("body.data missing use_erp_name, got:\n%s", parsed.Body.Data)
+	}
+}
+
+func TestParseContentBrunoInlineBodyBlock_IsNotTruncated(t *testing.T) {
+	content := "meta {\n" +
+		"  name: Create\n" +
+		"  type: http\n" +
+		"  seq: 1\n" +
+		"}\n\n" +
+		"post {\n" +
+		"  url: {{BASE_URL}}/api/v3/portal_user_locale\n" +
+		"  body: json\n" +
+		"  auth: bearer\n" +
+		"}\n\n" +
+		"headers {\n" +
+		"  X-Group-Key: {{GroupKey}}\n" +
+		"}\n\n" +
+		"auth:bearer {\n" +
+		"  token: {{BearerToken}}\n" +
+		"}\n\n" +
+		"body:json {\n" +
+		"  {\r\n" +
+		"      \"value\": \"en-US\"\r\n" +
+		"  }\n" +
+		"}\n"
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if parsed.Body.Type != "json" {
+		t.Fatalf("body.type: got %q, want %q", parsed.Body.Type, "json")
+	}
+	if !strings.Contains(parsed.Body.Data, `"value": "en-US"`) {
+		t.Fatalf("body.data missing expected field, got:\n%s", parsed.Body.Data)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(parsed.Body.Data), "}") {
+		t.Fatalf("body.data appears truncated, got:\n%s", parsed.Body.Data)
+	}
+}
+
+func TestParseContentBrunoInlineBodyBlock_PreservesJSONCContent(t *testing.T) {
+	content := `meta {
+  name: Update Display Profile
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{BASE_URL}}/api/v3/accounts/profile
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+      "display_name": "Test Display Name 1",
+      "bank_details": {
+          "country_code": "GB" //Required
+          // "account_holder_name": "Test Account Holder Next" //Required
+      }
+  }
+}
+`
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if !strings.Contains(parsed.Body.Data, `"country_code": "GB" //Required`) {
+		t.Fatalf("body.data missing inline comment content, got:\n%s", parsed.Body.Data)
+	}
+	if !strings.Contains(parsed.Body.Data, `// "account_holder_name": "Test Account Holder Next" //Required`) {
+		t.Fatalf("body.data missing commented JSONC field, got:\n%s", parsed.Body.Data)
+	}
+	if !strings.Contains(parsed.Body.Data, `"bank_details": {`) {
+		t.Fatalf("body.data missing nested object, got:\n%s", parsed.Body.Data)
+	}
+}
+
+func TestParseContentBrunoPathParamsBlock(t *testing.T) {
+	content := `meta {
+  name: Show Customer
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/customers/:customerId/invoices/:invoiceId
+  body: none
+}
+
+params:path {
+  customerId: 123
+  invoiceId: inv_456
+}
+`
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if len(parsed.HTTP.PathParams) != 2 {
+		t.Fatalf("http.pathParams: got %+v", parsed.HTTP.PathParams)
+	}
+	if parsed.HTTP.PathParams[0].Key != "customerId" || parsed.HTTP.PathParams[0].Value != "123" || !parsed.HTTP.PathParams[0].Enabled {
+		t.Fatalf("http.pathParams[0]: got %+v", parsed.HTTP.PathParams[0])
+	}
+	if parsed.HTTP.PathParams[1].Key != "invoiceId" || parsed.HTTP.PathParams[1].Value != "inv_456" || !parsed.HTTP.PathParams[1].Enabled {
+		t.Fatalf("http.pathParams[1]: got %+v", parsed.HTTP.PathParams[1])
+	}
+}
+
+func TestParseContentBrunoDisabledMarkers(t *testing.T) {
+	content := `meta {
+  name: Disabled Params
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/customers/:customerId
+  body: none
+}
+
+headers {
+  ~X-Group-Key: {{GroupKey}}
+}
+
+params:query {
+  ~page: 1
+}
+
+params:path {
+  ~customerId: 42
+}
+`
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if len(parsed.HTTP.Headers) != 1 {
+		t.Fatalf("http.headers: got %+v", parsed.HTTP.Headers)
+	}
+	if parsed.HTTP.Headers[0].Key != "X-Group-Key" || parsed.HTTP.Headers[0].Enabled {
+		t.Fatalf("http.headers[0]: got %+v", parsed.HTTP.Headers[0])
+	}
+
+	if len(parsed.HTTP.QueryParams) != 1 {
+		t.Fatalf("http.queryParams: got %+v", parsed.HTTP.QueryParams)
+	}
+	if parsed.HTTP.QueryParams[0].Key != "page" || parsed.HTTP.QueryParams[0].Enabled {
+		t.Fatalf("http.queryParams[0]: got %+v", parsed.HTTP.QueryParams[0])
+	}
+
+	if len(parsed.HTTP.PathParams) != 1 {
+		t.Fatalf("http.pathParams: got %+v", parsed.HTTP.PathParams)
+	}
+	if parsed.HTTP.PathParams[0].Key != "customerId" || parsed.HTTP.PathParams[0].Enabled {
+		t.Fatalf("http.pathParams[0]: got %+v", parsed.HTTP.PathParams[0])
 	}
 }

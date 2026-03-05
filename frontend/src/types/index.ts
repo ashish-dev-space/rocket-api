@@ -6,6 +6,7 @@ export interface HttpRequest {
   headers: Header[]
   body: RequestBody
   queryParams: QueryParam[]
+  pathParams?: QueryParam[]
   auth: AuthConfig
 }
 
@@ -110,6 +111,8 @@ export interface BruFile {
     method: HttpMethod
     url: string
     headers: Header[]
+    queryParams?: QueryParam[]
+    pathParams?: QueryParam[]
   }
   body: RequestBody
   vars?: Record<string, unknown>

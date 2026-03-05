@@ -355,8 +355,9 @@ func (h *ImportExportHandler) convertPostmanItem(collectionName, folderPath stri
 	var headers []bru.Header
 	for _, h := range item.Request.Header {
 		headers = append(headers, bru.Header{
-			Key:   h.Key,
-			Value: h.Value,
+			Key:     h.Key,
+			Value:   h.Value,
+			Enabled: true,
 		})
 	}
 
@@ -384,6 +385,7 @@ func (h *ImportExportHandler) convertPostmanItem(collectionName, folderPath stri
 			URL         string           `json:"url"`
 			Headers     []bru.Header     `json:"headers"`
 			QueryParams []bru.QueryParam `json:"queryParams,omitempty"`
+			PathParams  []bru.QueryParam `json:"pathParams,omitempty"`
 			Body        string           `json:"body,omitempty"`
 			Auth        *bru.AuthConfig  `json:"auth,omitempty"`
 		}{
@@ -391,6 +393,7 @@ func (h *ImportExportHandler) convertPostmanItem(collectionName, folderPath stri
 			URL:         url,
 			Headers:     headers,
 			QueryParams: []bru.QueryParam{},
+			PathParams:  []bru.QueryParam{},
 			Body:        bodyData,
 			Auth:        nil,
 		},

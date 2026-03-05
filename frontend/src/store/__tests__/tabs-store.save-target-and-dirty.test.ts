@@ -30,6 +30,7 @@ describe('tabs-store save-target and dirty semantics', () => {
   beforeEach(() => {
     saveRequestMock.mockReset()
     getRequestMock.mockReset()
+    localStorage.clear()
     vi.useFakeTimers()
   })
 
@@ -250,5 +251,90 @@ describe('tabs-store save-target and dirty semantics', () => {
     expect(latest.activeTabId).toBe(existingTab.id)
     expect(latest.tabs.length).toBe(baseTabCount + 2)
     expect(getRequestMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores persisted tab session with active tab on reload', async () => {
+    localStorage.setItem(
+      'rocket-api:tabs-session:v1',
+      JSON.stringify({
+        state: {
+          tabs: [
+            {
+              kind: 'request',
+              id: 'tab-request',
+              request: {
+                id: 'req-1',
+                name: 'Persisted Request',
+                method: 'GET',
+                url: 'https://api.example.com/persisted',
+                headers: [],
+                queryParams: [],
+                pathParams: [],
+                body: { type: 'none', content: '' },
+                auth: { type: 'none' },
+              },
+              response: null,
+              isDirty: false,
+              isLoading: false,
+              collectionName: 'example',
+              filePath: 'requests/persisted.bru',
+              lastSavedSnapshot: '{}',
+            },
+            {
+              kind: 'collection-overview',
+              id: 'tab-overview',
+              collectionName: 'example',
+            },
+          ],
+          activeTabId: 'tab-overview',
+        },
+        version: 0,
+      })
+    )
+
+    const useTabsStore = await loadStore()
+    const state = useTabsStore.getState()
+
+    expect(state.tabs).toHaveLength(2)
+    expect(state.activeTabId).toBe('tab-overview')
+  })
+
+  it('falls back to valid active tab when persisted active id is invalid', async () => {
+    localStorage.setItem(
+      'rocket-api:tabs-session:v1',
+      JSON.stringify({
+        state: {
+          tabs: [
+            {
+              kind: 'request',
+              id: 'tab-request',
+              request: {
+                id: 'req-1',
+                name: 'Persisted Request',
+                method: 'GET',
+                url: 'https://api.example.com/persisted',
+                headers: [],
+                queryParams: [],
+                pathParams: [],
+                body: { type: 'none', content: '' },
+                auth: { type: 'none' },
+              },
+              response: null,
+              isDirty: false,
+              isLoading: false,
+              lastSavedSnapshot: '{}',
+            },
+          ],
+          activeTabId: 'missing-tab-id',
+        },
+        version: 0,
+      })
+    )
+
+    const useTabsStore = await loadStore()
+    const state = useTabsStore.getState()
+
+    expect(state.tabs).toHaveLength(1)
+    expect(state.activeTabId).toBe('tab-request')
   })
 })

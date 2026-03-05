@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import {
   HttpRequest,
   HttpResponse,
@@ -47,6 +48,7 @@ interface TabsState {
   updateActiveUrl: (url: string) => void
   updateActiveHeaders: (headers: Header[]) => void
   updateActiveQueryParams: (params: QueryParam[]) => void
+  updateActivePathParams: (params: QueryParam[]) => void
   updateActiveBody: (body: RequestBody) => void
   updateActiveAuth: (auth: AuthConfig) => void
 
@@ -64,6 +66,8 @@ interface TabsState {
   loadRequestFromPath: (collectionName: string, path: string) => Promise<void>
 }
 
+const TABS_SESSION_STORAGE_KEY = 'rocket-api:tabs-session:v1'
+
 const createDefaultRequest = (): HttpRequest => ({
   id: Date.now().toString(),
   name: 'Untitled Request',
@@ -71,6 +75,7 @@ const createDefaultRequest = (): HttpRequest => ({
   url: '',
   headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
   queryParams: [],
+  pathParams: [],
   body: { type: 'none', content: '' },
   auth: { type: 'none' },
 })
@@ -82,6 +87,7 @@ const serializePersistedRequest = (request: HttpRequest): string =>
     url: request.url,
     headers: request.headers,
     queryParams: request.queryParams,
+    pathParams: request.pathParams ?? [],
     body: request.body,
     auth: request.auth,
   })
@@ -99,6 +105,34 @@ const createTab = (request?: HttpRequest): RequestTab => {
   }
 }
 
+const createInitialSession = () => {
+  const initialTab = createTab()
+  return {
+    tabs: [initialTab] as Tab[],
+    activeTabId: initialTab.id,
+  }
+}
+
+const normalizeSession = (
+  persisted?: Partial<Pick<TabsState, 'tabs' | 'activeTabId'>>
+): Pick<TabsState, 'tabs' | 'activeTabId'> => {
+  if (!persisted?.tabs || persisted.tabs.length === 0) {
+    return createInitialSession()
+  }
+
+  const tabs = persisted.tabs
+  const activeTabId = persisted.activeTabId
+  const validActiveId =
+    activeTabId && tabs.some(tab => tab.id === activeTabId)
+      ? activeTabId
+      : tabs[0].id
+
+  return {
+    tabs,
+    activeTabId: validActiveId,
+  }
+}
+
 const loadVersionByTabId = new Map<string, number>()
 
 const bumpLoadVersion = (tabId: string): number => {
@@ -110,8 +144,9 @@ const bumpLoadVersion = (tabId: string): number => {
 const isLatestLoadVersion = (tabId: string, version: number): boolean =>
   loadVersionByTabId.get(tabId) === version
 
-export const useTabsStore = create<TabsState>((set, get) => {
-  const initialTab = createTab()
+export const useTabsStore = create<TabsState>()(
+  persist((set, get) => {
+  const initialSession = createInitialSession()
   const loadRequestIntoTab = (
     tabId: string,
     request: HttpRequest,
@@ -158,8 +193,8 @@ export const useTabsStore = create<TabsState>((set, get) => {
     }))
 
   return {
-    tabs: [initialTab],
-    activeTabId: initialTab.id,
+    tabs: initialSession.tabs,
+    activeTabId: initialSession.activeTabId,
 
     newTab: () => {
       const tab = createTab()
@@ -224,6 +259,9 @@ export const useTabsStore = create<TabsState>((set, get) => {
     updateActiveQueryParams: (queryParams) =>
       updateActiveRequest(request => ({ ...request, queryParams })),
 
+    updateActivePathParams: (pathParams) =>
+      updateActiveRequest(request => ({ ...request, pathParams })),
+
     updateActiveBody: (body) =>
       updateActiveRequest(request => ({ ...request, body })),
 
@@ -277,6 +315,7 @@ export const useTabsStore = create<TabsState>((set, get) => {
           queryParams: req.queryParams
             .filter(q => q.enabled)
             .map(q => ({ key: q.key, value: q.value, enabled: q.enabled })),
+          pathParams: (req.pathParams ?? []).map(p => ({ key: p.key, value: p.value, enabled: p.enabled })),
           auth:
             req.auth.type !== 'none'
               ? {
@@ -355,10 +394,10 @@ export const useTabsStore = create<TabsState>((set, get) => {
           name: bruFile.meta.name,
           method: bruFile.http.method,
           url: bruFile.http.url,
-          headers: bruFile.http.headers.map((h: { key: string; value: string }) => ({
+          headers: bruFile.http.headers.map((h: { key: string; value: string; enabled?: boolean }) => ({
             key: h.key,
             value: h.value,
-            enabled: true,
+            enabled: h.enabled ?? true,
           })),
           queryParams:
             bruFile.http.queryParams?.map(
@@ -366,6 +405,14 @@ export const useTabsStore = create<TabsState>((set, get) => {
                 key: q.key,
                 value: q.value,
                 enabled: q.enabled,
+              })
+            ) ?? [],
+          pathParams:
+            bruFile.http.pathParams?.map(
+              (p: { key: string; value: string; enabled: boolean }) => ({
+                key: p.key,
+                value: p.value,
+                enabled: p.enabled,
               })
             ) ?? [],
           body: {
@@ -393,4 +440,16 @@ export const useTabsStore = create<TabsState>((set, get) => {
       }
     },
   }
+},
+{
+  name: TABS_SESSION_STORAGE_KEY,
+  partialize: (state) => ({
+    tabs: state.tabs,
+    activeTabId: state.activeTabId,
+  }),
+  merge: (persistedState, currentState) => ({
+    ...currentState,
+    ...normalizeSession(persistedState as Partial<Pick<TabsState, 'tabs' | 'activeTabId'>>),
+  }),
 })
+)
