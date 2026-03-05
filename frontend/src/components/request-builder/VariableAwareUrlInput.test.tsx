@@ -84,4 +84,54 @@ describe('VariableAwareUrlInput', () => {
       expect(onSaveParamToken).toHaveBeenCalledWith('token', 'new-token', 'path')
     )
   })
+
+  it('closes popup on outside click without saving unsaved edits', async () => {
+    const onSaveParamToken = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <VariableAwareUrlInput
+        {...baseProps}
+        value="{{BASE_URL}}/api/v3/network_invitations/:token/resend"
+        pathParams={[{ key: 'token', value: 'old', enabled: true }]}
+        onSaveParamToken={onSaveParamToken}
+      />
+    )
+
+    const token = screen.getByText(':token')
+    fireEvent.focus(token)
+
+    const input = await screen.findByPlaceholderText('Parameter value')
+    fireEvent.change(input, { target: { value: 'new-token' } })
+    fireEvent.pointerDown(document.body)
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText('Parameter value')).not.toBeInTheDocument()
+    )
+    expect(onSaveParamToken).not.toHaveBeenCalled()
+  })
+
+  it('closes popup on Escape without saving unsaved edits', async () => {
+    const onSaveParamToken = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <VariableAwareUrlInput
+        {...baseProps}
+        value="{{BASE_URL}}/api/v3/network_invitations/:token/resend"
+        pathParams={[{ key: 'token', value: 'old', enabled: true }]}
+        onSaveParamToken={onSaveParamToken}
+      />
+    )
+
+    const token = screen.getByText(':token')
+    fireEvent.focus(token)
+
+    const input = await screen.findByPlaceholderText('Parameter value')
+    fireEvent.change(input, { target: { value: 'new-token' } })
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText('Parameter value')).not.toBeInTheDocument()
+    )
+    expect(onSaveParamToken).not.toHaveBeenCalled()
+  })
 })

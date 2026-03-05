@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CollectionVar, Environment, QueryParam } from '@/types'
@@ -133,6 +133,8 @@ export function VariableAwareUrlInput({
   const [editingValue, setEditingValue] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const closeTimerRef = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const dropdownContentRef = useRef<HTMLDivElement | null>(null)
   const hoveredTokenRef = useRef<string | null>(null)
   const isContentHoveredRef = useRef(false)
   const suppressedReopenTokenRef = useRef<string | null>(null)
@@ -141,12 +143,12 @@ export function VariableAwareUrlInput({
   const tokenKey = (token: UrlToken) => `${token.kind}:${token.target ?? 'na'}:${token.name}`
   const tokenByKey = useMemo(() => new Map(tokens.map(t => [tokenKey(t), t])), [tokens])
 
-  const clearCloseTimer = () => {
+  const clearCloseTimer = useCallback(() => {
     if (closeTimerRef.current) {
       window.clearTimeout(closeTimerRef.current)
       closeTimerRef.current = null
     }
-  }
+  }, [])
 
   const openEditor = (token: UrlToken) => {
     const key = tokenKey(token)
@@ -176,21 +178,52 @@ export function VariableAwareUrlInput({
     }, 220)
   }
 
-  const closeEditor = () => {
+  const closeEditor = useCallback(() => {
+    clearCloseTimer()
     setEditingTokenKey(null)
     setEditingValue('')
     setIsSaving(false)
-  }
+  }, [clearCloseTimer])
 
   useEffect(() => {
     editingTokenKeyRef.current = editingTokenKey
-  }, [editingTokenKey])
+  }, [editingTokenKey, closeEditor])
+
+  useEffect(() => {
+    if (!editingTokenKey) {
+      dropdownContentRef.current = null
+      return
+    }
+
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+
+      if (dropdownContentRef.current?.contains(target)) return
+      if (containerRef.current?.contains(target)) return
+
+      closeEditor()
+    }
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      closeEditor()
+    }
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown)
+    document.addEventListener('keydown', handleDocumentKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown)
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+    }
+  }, [editingTokenKey, closeEditor])
 
   useEffect(() => {
     return () => {
       clearCloseTimer()
     }
-  }, [])
+  }, [clearCloseTimer])
 
   const handleTokenPointerEnter = (token: UrlToken) => {
     hoveredTokenRef.current = token.name
@@ -301,6 +334,12 @@ export function VariableAwareUrlInput({
           <DropdownMenuContent
             align="start"
             className="w-72 p-3 space-y-2"
+            ref={(node) => {
+              if (!token) return
+              if (editingTokenKey === tokenKey(token)) {
+                dropdownContentRef.current = node
+              }
+            }}
             onMouseEnter={() => {
               isContentHoveredRef.current = true
               clearCloseTimer()
@@ -374,7 +413,7 @@ export function VariableAwareUrlInput({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" ref={containerRef}>
       <div className="relative">
         <Input
           value={value}
