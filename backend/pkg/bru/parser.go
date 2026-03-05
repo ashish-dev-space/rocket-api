@@ -152,6 +152,12 @@ func ParseContent(content string) (*BruFile, error) {
 			if blockName == "data" {
 				inDataBlock = true
 			}
+			if method, ok := httpMethodForBlock(blockName); ok {
+				bru.HTTP.Method = method
+			}
+			if authType, ok := strings.CutPrefix(blockName, "auth:"); ok {
+				configureAuth(bru, strings.TrimSpace(authType))
+			}
 			continue
 		}
 
@@ -168,6 +174,15 @@ func ParseContent(content string) (*BruFile, error) {
 				bru.HTTP.URL = strings.TrimSpace(v)
 			}
 
+		case "get", "post", "put", "delete", "patch", "head", "options":
+			if v, ok := strings.CutPrefix(trimmed, "url:"); ok {
+				bru.HTTP.URL = strings.TrimSpace(v)
+			} else if v, ok := strings.CutPrefix(trimmed, "body:"); ok {
+				bru.Body.Type = strings.TrimSpace(v)
+			} else if v, ok := strings.CutPrefix(trimmed, "auth:"); ok {
+				configureAuth(bru, strings.TrimSpace(v))
+			}
+
 		case "headers":
 			// "Key: Value" — split on first colon only.
 			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
@@ -177,7 +192,7 @@ func ParseContent(content string) (*BruFile, error) {
 				})
 			}
 
-		case "query":
+		case "query", "params:query":
 			if parts := strings.SplitN(trimmed, ":", 2); len(parts) == 2 {
 				bru.HTTP.QueryParams = append(bru.HTTP.QueryParams, QueryParam{
 					Key:     strings.TrimSpace(parts[0]),
@@ -188,26 +203,7 @@ func ParseContent(content string) (*BruFile, error) {
 
 		case "auth":
 			if v, ok := strings.CutPrefix(trimmed, "type:"); ok {
-				authType := strings.TrimSpace(v)
-				bru.HTTP.Auth = &AuthConfig{Type: authType}
-				// Pre-allocate sub-struct so later lines can fill it in.
-				switch authType {
-				case "basic":
-					bru.HTTP.Auth.Basic = &struct {
-						Username string `json:"username"`
-						Password string `json:"password"`
-					}{}
-				case "bearer":
-					bru.HTTP.Auth.Bearer = &struct {
-						Token string `json:"token"`
-					}{}
-				case "api-key":
-					bru.HTTP.Auth.APIKey = &struct {
-						Key   string `json:"key"`
-						Value string `json:"value"`
-						In    string `json:"in"`
-					}{}
-				}
+				configureAuth(bru, strings.TrimSpace(v))
 			} else if bru.HTTP.Auth != nil {
 				switch bru.HTTP.Auth.Type {
 				case "basic":
@@ -241,6 +237,41 @@ func ParseContent(content string) (*BruFile, error) {
 			if v, ok := strings.CutPrefix(trimmed, "type:"); ok {
 				bru.Body.Type = strings.TrimSpace(v)
 			}
+
+		default:
+			if authType, ok := strings.CutPrefix(ctx, "auth:"); ok {
+				if bru.HTTP.Auth == nil || bru.HTTP.Auth.Type != authType {
+					configureAuth(bru, authType)
+				}
+				if bru.HTTP.Auth != nil {
+					switch bru.HTTP.Auth.Type {
+					case "basic":
+						if bru.HTTP.Auth.Basic != nil {
+							if v, ok := strings.CutPrefix(trimmed, "username:"); ok {
+								bru.HTTP.Auth.Basic.Username = strings.TrimSpace(v)
+							} else if v, ok := strings.CutPrefix(trimmed, "password:"); ok {
+								bru.HTTP.Auth.Basic.Password = strings.TrimSpace(v)
+							}
+						}
+					case "bearer":
+						if bru.HTTP.Auth.Bearer != nil {
+							if v, ok := strings.CutPrefix(trimmed, "token:"); ok {
+								bru.HTTP.Auth.Bearer.Token = strings.TrimSpace(v)
+							}
+						}
+					case "api-key":
+						if bru.HTTP.Auth.APIKey != nil {
+							if v, ok := strings.CutPrefix(trimmed, "key:"); ok {
+								bru.HTTP.Auth.APIKey.Key = strings.TrimSpace(v)
+							} else if v, ok := strings.CutPrefix(trimmed, "value:"); ok {
+								bru.HTTP.Auth.APIKey.Value = strings.TrimSpace(v)
+							} else if v, ok := strings.CutPrefix(trimmed, "in:"); ok {
+								bru.HTTP.Auth.APIKey.In = strings.TrimSpace(v)
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -266,6 +297,49 @@ func parseMetaLine(line string, bru *BruFile) {
 		if seq, err := strconv.Atoi(seqStr); err == nil {
 			bru.Meta.Seq = seq
 		}
+	}
+}
+
+func httpMethodForBlock(blockName string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(blockName)) {
+	case "get":
+		return "GET", true
+	case "post":
+		return "POST", true
+	case "put":
+		return "PUT", true
+	case "delete":
+		return "DELETE", true
+	case "patch":
+		return "PATCH", true
+	case "head":
+		return "HEAD", true
+	case "options":
+		return "OPTIONS", true
+	default:
+		return "", false
+	}
+}
+
+func configureAuth(bru *BruFile, authType string) {
+	normalized := strings.ToLower(strings.TrimSpace(authType))
+	bru.HTTP.Auth = &AuthConfig{Type: normalized}
+	switch normalized {
+	case "basic":
+		bru.HTTP.Auth.Basic = &struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}{}
+	case "bearer":
+		bru.HTTP.Auth.Bearer = &struct {
+			Token string `json:"token"`
+		}{}
+	case "api-key":
+		bru.HTTP.Auth.APIKey = &struct {
+			Key   string `json:"key"`
+			Value string `json:"value"`
+			In    string `json:"in"`
+		}{}
 	}
 }
 

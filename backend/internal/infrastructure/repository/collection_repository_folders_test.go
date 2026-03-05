@@ -3,6 +3,7 @@ package repository
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -73,5 +74,66 @@ func TestCreateRequest(t *testing.T) {
 
 	if _, err := repo.CreateRequest("test", "users", "list-users", "GET"); err == nil {
 		t.Fatalf("expected duplicate request error")
+	}
+}
+
+func TestGetCollectionStructure_IgnoresBrunoFolderMetadataFiles(t *testing.T) {
+	repo := setupCollectionRepo(t)
+
+	if err := repo.WriteFile("test", "Accounts/folder.bru", []byte("meta {\n  name: Accounts\n  seq: 1\n}\n")); err != nil {
+		t.Fatalf("failed to write folder.bru: %v", err)
+	}
+	if err := repo.WriteFile("test", "Accounts/Users/folder.bru", []byte("meta {\n  name: Users\n  seq: 1\n}\n")); err != nil {
+		t.Fatalf("failed to write nested folder.bru: %v", err)
+	}
+	if err := repo.WriteFile("test", "Accounts/Users/Index.bru", []byte(strings.Join([]string{
+		"meta {",
+		"  name: Index",
+		"  type: http",
+		"}",
+		"",
+		"get {",
+		"  url: https://example.com/users",
+		"  body: none",
+		"}",
+		"",
+	}, "\n"))); err != nil {
+		t.Fatalf("failed to write request .bru: %v", err)
+	}
+
+	tree, err := repo.GetCollectionStructure("test")
+	if err != nil {
+		t.Fatalf("GetCollectionStructure() error = %v", err)
+	}
+
+	var requestPaths []string
+	var walk func(nodes []CollectionNode)
+	walk = func(nodes []CollectionNode) {
+		for _, n := range nodes {
+			if n.Type == "request" {
+				requestPaths = append(requestPaths, n.Path)
+			}
+			if len(n.Children) > 0 {
+				walk(n.Children)
+			}
+		}
+	}
+	walk(tree.Children)
+
+	for _, p := range requestPaths {
+		if strings.HasSuffix(p, "/folder.bru") || p == "folder.bru" {
+			t.Fatalf("folder metadata must not appear as request, got request path %q in %+v", p, requestPaths)
+		}
+	}
+
+	hasIndex := false
+	for _, p := range requestPaths {
+		if p == "Accounts/Users/Index.bru" {
+			hasIndex = true
+			break
+		}
+	}
+	if !hasIndex {
+		t.Fatalf("expected real request in tree, got %v", requestPaths)
 	}
 }

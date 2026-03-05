@@ -118,3 +118,57 @@ func TestParseContentBearerAuth(t *testing.T) {
 		t.Errorf("auth.bearer.token: got %+v", parsed.HTTP.Auth.Bearer)
 	}
 }
+
+func TestParseContentBrunoMethodBlocks(t *testing.T) {
+	content := `meta {
+  name: Show Display Profile
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v3/accounts/profile
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+}
+
+headers {
+  X-Group-Key: {{GroupKey}}
+}
+
+auth:bearer {
+  token: {{BearerToken}}
+}
+`
+
+	parsed, err := ParseContent(content)
+	if err != nil {
+		t.Fatalf("ParseContent error: %v", err)
+	}
+
+	if parsed.HTTP.Method != "GET" {
+		t.Fatalf("http.method: got %q, want %q", parsed.HTTP.Method, "GET")
+	}
+	if parsed.HTTP.URL != "{{BASE_URL}}/api/v3/accounts/profile" {
+		t.Fatalf("http.url: got %q", parsed.HTTP.URL)
+	}
+	if parsed.Body.Type != "none" {
+		t.Fatalf("body.type: got %q, want %q", parsed.Body.Type, "none")
+	}
+	if len(parsed.HTTP.QueryParams) != 1 || parsed.HTTP.QueryParams[0].Key != "page" || parsed.HTTP.QueryParams[0].Value != "1" {
+		t.Fatalf("http.queryParams: got %+v", parsed.HTTP.QueryParams)
+	}
+	if len(parsed.HTTP.Headers) != 1 || parsed.HTTP.Headers[0].Key != "X-Group-Key" {
+		t.Fatalf("http.headers: got %+v", parsed.HTTP.Headers)
+	}
+	if parsed.HTTP.Auth == nil || parsed.HTTP.Auth.Type != "bearer" {
+		t.Fatalf("http.auth: got %+v", parsed.HTTP.Auth)
+	}
+	if parsed.HTTP.Auth.Bearer == nil || parsed.HTTP.Auth.Bearer.Token != "{{BearerToken}}" {
+		t.Fatalf("http.auth.bearer: got %+v", parsed.HTTP.Auth.Bearer)
+	}
+}

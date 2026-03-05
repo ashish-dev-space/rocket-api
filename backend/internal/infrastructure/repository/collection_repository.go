@@ -144,7 +144,8 @@ func (r *CollectionRepository) ListBruFiles(collectionName string) ([]string, er
 
 	var bruFiles []string
 	for _, file := range files {
-		if strings.HasSuffix(file, ".bru") {
+		base := filepath.Base(file)
+		if strings.HasSuffix(file, ".bru") && base != "collection.bru" && base != "folder.bru" {
 			bruFiles = append(bruFiles, file)
 		}
 	}
@@ -315,6 +316,10 @@ func (r *CollectionRepository) GetCollectionStructure(collectionName string) (*C
 		}
 		// Skip collection.bru — it holds collection-level vars, not a request.
 		if !info.IsDir() && info.Name() == "collection.bru" {
+			return nil
+		}
+		// Skip folder.bru — Bruno folder metadata file, not a request.
+		if !info.IsDir() && info.Name() == "folder.bru" {
 			return nil
 		}
 

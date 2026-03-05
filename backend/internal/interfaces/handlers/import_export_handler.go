@@ -97,6 +97,8 @@ func (h *ImportExportHandler) importBrunoZip(collectionName string, zipContent [
 		return fmt.Errorf("failed to read zip: %w", err)
 	}
 
+	var brunoEnvironmentsJSON []byte
+
 	for _, file := range reader.File {
 		// Skip directories and non-.bru files
 		if file.FileInfo().IsDir() {
@@ -115,13 +117,80 @@ func (h *ImportExportHandler) importBrunoZip(collectionName string, zipContent [
 			continue
 		}
 
+		normalizedName := filepath.ToSlash(file.Name)
+		if normalizedName == "environments/bruno-collection-environments.json" {
+			brunoEnvironmentsJSON = content
+		}
+
 		// Save file preserving directory structure
 		if err := h.repo.WriteFile(collectionName, file.Name, content); err != nil {
 			continue
 		}
 	}
 
+	if len(brunoEnvironmentsJSON) > 0 {
+		importedCount, err := h.importBrunoEnvironmentsJSON(collectionName, brunoEnvironmentsJSON)
+		if err != nil {
+			return err
+		}
+		// Remove scaffold environment when actual environments were imported.
+		if importedCount > 0 {
+			_ = h.repo.DeleteEnvironment(collectionName, "dev")
+		}
+	}
+
 	return nil
+}
+
+func (h *ImportExportHandler) importBrunoEnvironmentsJSON(collectionName string, content []byte) (int, error) {
+	var payload struct {
+		Environments []struct {
+			Name      string `json:"name"`
+			Variables []struct {
+				Name    string `json:"name"`
+				Value   string `json:"value"`
+				Enabled *bool  `json:"enabled"`
+				Secret  bool   `json:"secret"`
+			} `json:"variables"`
+		} `json:"environments"`
+	}
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return 0, fmt.Errorf("failed to parse bruno environments json: %w", err)
+	}
+
+	importedCount := 0
+	for _, env := range payload.Environments {
+		if strings.TrimSpace(env.Name) == "" {
+			continue
+		}
+
+		repoEnv := &repository.Environment{
+			Name:      env.Name,
+			Variables: make([]repository.EnvVariable, 0, len(env.Variables)),
+		}
+		for _, v := range env.Variables {
+			if strings.TrimSpace(v.Name) == "" {
+				continue
+			}
+			enabled := true
+			if v.Enabled != nil {
+				enabled = *v.Enabled
+			}
+			repoEnv.Variables = append(repoEnv.Variables, repository.EnvVariable{
+				Key:     v.Name,
+				Value:   v.Value,
+				Enabled: enabled,
+				Secret:  v.Secret,
+			})
+		}
+
+		if err := h.repo.WriteEnvironment(collectionName, repoEnv); err != nil {
+			return importedCount, fmt.Errorf("failed to import environment %q: %w", env.Name, err)
+		}
+		importedCount++
+	}
+
+	return importedCount, nil
 }
 
 // ExportBruno handles exporting a collection as Bruno format
