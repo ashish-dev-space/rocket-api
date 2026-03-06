@@ -8,6 +8,7 @@ import {
   HttpResponse,
   QueryParam,
   RequestBody,
+  Scripts,
 } from '@/types'
 import { useTabsStore } from '@/store/tabs-store'
 import { useCollectionsStore } from '@/store/collections'
@@ -51,6 +52,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     updateActivePathParams,
     updateActiveBody,
     updateActiveAuth,
+    updateActiveScripts,
     setActiveTabResponse,
     setActiveTabLoading,
     saveActiveTab,
@@ -78,6 +80,11 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
   const [pathParams, setPathParams] = useState<QueryParam[]>([])
   const [body, setBody] = useState<RequestBody>({ type: 'none', content: '' })
   const [auth, setAuth] = useState<AuthConfig>({ type: 'none' })
+  const [scripts, setScripts] = useState<Scripts>({
+    language: 'javascript',
+    preRequest: '',
+    postResponse: '',
+  })
 
   const handleMouseDown = useCallback(() => {
     setIsDragging(true)
@@ -120,6 +127,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
       setPathParams(currentRequest.pathParams ?? [])
       setBody(currentRequest.body)
       setAuth(currentRequest.auth)
+      setScripts(currentRequest.scripts ?? { language: 'javascript', preRequest: '', postResponse: '' })
     }
   }, [currentRequest, activeTabId])
 
@@ -141,6 +149,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     updateActivePathParams(pathParams)
     updateActiveBody(body)
     updateActiveAuth(auth)
+    updateActiveScripts(scripts)
 
     await saveActiveTab(activeCollection.name)
     useCollectionsStore.getState().fetchCollectionTree(activeCollection.name)
@@ -162,6 +171,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     updateActivePathParams,
     updateActiveBody,
     updateActiveAuth,
+    updateActiveScripts,
     saveActiveTab,
   ])
 
@@ -176,6 +186,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     updateActivePathParams(pathParams)
     updateActiveBody(body)
     updateActiveAuth(auth)
+    updateActiveScripts(scripts)
 
     const applyPathParamsToUrl = (inputUrl: string): string => {
       let output = inputUrl
@@ -224,6 +235,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
         queryParams: finalQueryParams,
         pathParams,
         auth,
+        scripts,
       }
 
       let httpResponse: HttpResponse
@@ -268,6 +280,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     pathParams,
     body,
     auth,
+    scripts,
     onRequestSent,
     updateActiveMethod,
     updateActiveUrl,
@@ -276,6 +289,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     updateActivePathParams,
     updateActiveBody,
     updateActiveAuth,
+    updateActiveScripts,
     setActiveTabLoading,
     setActiveTabResponse,
   ])
@@ -441,8 +455,10 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     pathParams,
     body,
     auth,
+    scripts,
     setBody,
     setAuth,
+    setScripts,
 
     isDirty,
     isLoading,
