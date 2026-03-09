@@ -4,6 +4,8 @@ import { RequestTabs } from '@/components/request-builder/RequestTabs'
 import { CollectionsSidebar } from '@/components/collections/CollectionsSidebar'
 import { CollectionOverview } from '@/components/collections/CollectionOverview'
 import { GlobalStatusBar } from '@/components/layout/GlobalStatusBar'
+import { ConsolePanel } from '@/components/layout/ConsolePanel'
+import { useConsoleStore } from '@/store/console'
 import { ThemeProvider, useTheme } from 'next-themes'
 import { useState, useEffect } from 'react'
 import { useWebSocket } from '@/hooks/use-websocket'
@@ -105,6 +107,9 @@ function App() {
     setActiveCollection,
   ])
 
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false)
+  const [consoleHeight, setConsoleHeight] = useState(280)
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" storageKey="rocket-theme" enableSystem>
@@ -136,12 +141,23 @@ function App() {
                 <CollectionOverview collectionName={activeTab.collectionName} />
               ) : (
                 <RequestBuilder
-                  onRequestSent={(req, res) => console.log('Request sent:', req, res)}
+                  onRequestSent={(req, res) => {
+                    useConsoleStore.getState().addEntry(req, res)
+                    if (!isConsoleOpen) setIsConsoleOpen(true)
+                  }}
                 />
               )}
             </main>
           </div>
-          <GlobalStatusBar />
+          <ConsolePanel
+            isOpen={isConsoleOpen}
+            height={consoleHeight}
+            onHeightChange={setConsoleHeight}
+          />
+          <GlobalStatusBar
+            isConsoleOpen={isConsoleOpen}
+            onConsoleToggle={() => setIsConsoleOpen(o => !o)}
+          />
         </div>
       </ThemeProvider>
     </QueryClientProvider>
