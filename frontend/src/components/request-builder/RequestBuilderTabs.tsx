@@ -487,6 +487,7 @@ export function RequestBuilderTabs({
           </div>
         </TabsContent>
 
+        {/* forceMount keeps Monaco editors mounted across tab switches, preserving state. */}
         <TabsContent value="scripts" className="mt-0 h-full data-[state=inactive]:hidden" forceMount>
           <div className="space-y-3 h-full flex flex-col">
             <div className="flex items-center gap-2">
