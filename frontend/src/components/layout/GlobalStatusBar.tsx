@@ -25,7 +25,12 @@ import { useCollectionsStore } from '@/store/collections'
 import { useTabsStore } from '@/store/tabs-store'
 import type { Cookie as CookieType, Template } from '@/types'
 
-export function GlobalStatusBar() {
+interface GlobalStatusBarProps {
+  isConsoleOpen: boolean
+  onConsoleToggle: () => void
+}
+
+export function GlobalStatusBar({ isConsoleOpen, onConsoleToggle }: GlobalStatusBarProps) {
   const { createCollection, importBruno } = useCollectionsStore()
   const { loadRequestInActiveTab } = useTabsStore()
 
@@ -201,6 +206,17 @@ export function GlobalStatusBar() {
         >
           <Cookie className="h-3 w-3" />
           Cookies
+        </Button>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`h-5 px-1.5 text-[11px] gap-1 ${isConsoleOpen ? 'bg-accent' : ''}`}
+          onClick={onConsoleToggle}
+          title="Toggle Console"
+          aria-label="Console"
+        >
+          Console
         </Button>
       </div>
 
