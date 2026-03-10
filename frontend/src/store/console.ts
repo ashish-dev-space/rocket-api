@@ -26,6 +26,14 @@ export const useConsoleStore = create<ConsoleState>((set) => ({
   entries: [],
 
   addEntry: (req, res) => {
+    const consoleLogs = [
+      ...(res.preScriptResult?.consoleLogs ?? []),
+      ...(res.scriptResult?.consoleLogs ?? []),
+    ]
+    const scriptTests = [
+      ...(res.preScriptResult?.tests ?? []),
+      ...(res.scriptResult?.tests ?? []),
+    ]
     const entry: ConsoleEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -41,6 +49,8 @@ export const useConsoleStore = create<ConsoleState>((set) => ({
       requestBody: formatRequestBody(req.body),
       responseHeaders: res.headers,
       responseBody: res.body,
+      consoleLogs,
+      scriptTests,
     }
     set(state => ({
       entries: [entry, ...state.entries].slice(0, MAX_ENTRIES),
