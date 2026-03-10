@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { HttpRequest, HttpResponse, ApiResponse, Environment, HistoryEntry, Template, Cookie, CollectionVar } from '@/types'
+import { HttpRequest, HttpResponse, ScriptResult, ApiResponse, Environment, HistoryEntry, Template, Cookie, CollectionVar } from '@/types'
 import { getRuntimeConfig } from '@/lib/runtime-config'
 
 export interface CollectionNode {
@@ -66,13 +66,19 @@ class ApiService {
 
       const endTime = Date.now()
       
+      const raw = response.data.data as HttpResponse & {
+        preScriptResult?: ScriptResult
+        scriptResult?: ScriptResult
+      }
       return {
-        status: response.data.data.status,
-        statusText: response.data.data.statusText,
-        headers: response.data.data.headers,
-        body: this.normalizeBody(response.data.data.body),
-        size: response.data.data.size,
-        time: endTime - startTime
+        status: raw.status,
+        statusText: raw.statusText,
+        headers: raw.headers,
+        body: this.normalizeBody(raw.body),
+        size: raw.size,
+        time: endTime - startTime,
+        preScriptResult: raw.preScriptResult,
+        scriptResult: raw.scriptResult,
       }
     } catch (error) {
       const endTime = Date.now()
