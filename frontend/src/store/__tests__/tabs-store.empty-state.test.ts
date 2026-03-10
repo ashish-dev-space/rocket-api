@@ -1,11 +1,11 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 
 // normalizeSession is not exported — test via store hydration behavior
-// We simulate it by mocking sessionStorage with an empty tabs array
+// The store uses localStorage (zustand persist default)
 describe('tabs-store empty state', () => {
   beforeEach(() => {
     vi.resetModules()
-    sessionStorage.clear()
+    localStorage.clear()
   })
 
   it('starts with empty tabs when sessionStorage has no stored tabs', async () => {

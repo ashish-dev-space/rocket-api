@@ -109,14 +109,6 @@ const createTab = (request?: HttpRequest): RequestTab => {
   }
 }
 
-const createInitialSession = () => {
-  const initialTab = createTab()
-  return {
-    tabs: [initialTab] as Tab[],
-    activeTabId: initialTab.id,
-  }
-}
-
 const normalizeSession = (
   persisted?: Partial<Pick<TabsState, 'tabs' | 'activeTabId'>>
 ): Pick<TabsState, 'tabs' | 'activeTabId'> => {
