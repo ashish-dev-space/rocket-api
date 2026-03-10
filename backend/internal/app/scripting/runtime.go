@@ -35,8 +35,9 @@ type TestResult struct {
 
 // ExecutionResult stores script execution outputs.
 type ExecutionResult struct {
-	Tests     []TestResult       `json:"tests,omitempty"`
-	Variables map[string]string  `json:"variables,omitempty"`
+	Tests       []TestResult      `json:"tests,omitempty"`
+	Variables   map[string]string `json:"variables,omitempty"`
+	ConsoleLogs []string          `json:"consoleLogs,omitempty"`
 }
 
 func ExecutePreRequestScript(script, language string, req *RequestState, variables map[string]string) (*ExecutionResult, error) {
@@ -170,6 +171,23 @@ func executeScript(script, language string, req *RequestState, resp *ResponseSta
 	bruObject.Set("req", requestObject)
 	bruObject.Set("res", responseObject)
 	bruObject.Set("test", testFn)
+
+	consoleObject := vm.NewObject()
+	consoleLogFn := func(call goja.FunctionCall) goja.Value {
+		parts := make([]string, len(call.Arguments))
+		for i, arg := range call.Arguments {
+			parts[i] = arg.String()
+		}
+		result.ConsoleLogs = append(result.ConsoleLogs, strings.Join(parts, " "))
+		return goja.Undefined()
+	}
+	consoleObject.Set("log", consoleLogFn)
+	consoleObject.Set("warn", consoleLogFn)
+	consoleObject.Set("error", consoleLogFn)
+	consoleObject.Set("info", consoleLogFn)
+	if err := vm.Set("console", consoleObject); err != nil {
+		return nil, fmt.Errorf("failed to initialize console object: %w", err)
+	}
 
 	if err := vm.Set("pm", pmObject); err != nil {
 		return nil, fmt.Errorf("failed to initialize pm object: %w", err)
