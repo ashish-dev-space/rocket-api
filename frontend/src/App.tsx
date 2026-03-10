@@ -5,6 +5,7 @@ import { CollectionsSidebar } from '@/components/collections/CollectionsSidebar'
 import { CollectionOverview } from '@/components/collections/CollectionOverview'
 import { GlobalStatusBar } from '@/components/layout/GlobalStatusBar'
 import { ConsolePanel } from '@/components/layout/ConsolePanel'
+import { WelcomeScreen } from '@/components/layout/WelcomeScreen'
 import { useConsoleStore } from '@/store/console'
 import { ThemeProvider, useTheme } from 'next-themes'
 import { useState, useEffect } from 'react'
@@ -60,6 +61,7 @@ function App() {
     collections,
     setActiveCollection,
   } = useCollectionsStore()
+  const tabs = useTabsStore(state => state.tabs)
   const activeTab = useTabsStore(state => state.tabs.find(t => t.id === state.activeTabId))
   
   // WebSocket for real-time updates
@@ -137,7 +139,9 @@ function App() {
             
             <main className="flex-1 flex flex-col min-w-0 bg-transparent">
               <RequestTabs />
-              {activeTab && !isRequestTab(activeTab) ? (
+              {tabs.length === 0 ? (
+                <WelcomeScreen />
+              ) : activeTab && !isRequestTab(activeTab) ? (
                 <CollectionOverview collectionName={activeTab.collectionName} />
               ) : (
                 <RequestBuilder
