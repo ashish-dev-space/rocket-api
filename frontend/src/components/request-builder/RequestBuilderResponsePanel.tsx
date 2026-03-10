@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { MonacoEditor } from '@/components/ui/monaco-editor'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { HttpResponse } from '@/types'
+import { HttpResponse, ScriptTestResult } from '@/types'
 import { Copy } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -36,6 +36,14 @@ export function RequestBuilderResponsePanel({
     () => (response ? formatResponseBody(response.body) : ''),
     [response]
   )
+
+  const allTests = useMemo<ScriptTestResult[]>(() => [
+    ...(response?.preScriptResult?.tests ?? []),
+    ...(response?.scriptResult?.tests ?? []),
+  ], [response])
+
+  const passCount = useMemo(() => allTests.filter(t => t.passed).length, [allTests])
+  const failCount = allTests.length - passCount
 
   return (
     <div className="flex-1 flex flex-col bg-card/65 overflow-hidden min-h-0 backdrop-blur-sm">
@@ -75,6 +83,14 @@ export function RequestBuilderResponsePanel({
               <TabsList className="h-7 bg-transparent">
                 <TabsTrigger value="body" className="text-xs h-6 data-[state=active]:bg-background">Body</TabsTrigger>
                 <TabsTrigger value="headers" className="text-xs h-6 data-[state=active]:bg-background">Headers</TabsTrigger>
+                <TabsTrigger value="tests" className="text-xs h-6 data-[state=active]:bg-background">
+                  Tests
+                  {allTests.length > 0 && (
+                    <span className={`ml-1 text-[10px] font-semibold px-1 rounded ${failCount > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {passCount}/{allTests.length}
+                    </span>
+                  )}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -114,6 +130,30 @@ export function RequestBuilderResponsePanel({
                     <span className="text-foreground">{String(value)}</span>
                   </div>
                 ))}
+              </div>
+            )}
+            {responseTab === 'tests' && (
+              <div className="space-y-1">
+                {allTests.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">
+                    No tests ran. Use <code className="font-mono bg-muted px-1 rounded">pm.test()</code> in your scripts.
+                  </p>
+                ) : (
+                  <>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {passCount} passed · {failCount} failed
+                    </div>
+                    {allTests.map((t, i) => (
+                      <div key={i} className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${t.passed ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                        <span className="font-bold shrink-0">{t.passed ? '✓' : '✗'}</span>
+                        <div className="min-w-0">
+                          <span className="font-medium">{t.name}</span>
+                          {t.error && <div className="text-[11px] opacity-75 mt-0.5 font-mono">{t.error}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
