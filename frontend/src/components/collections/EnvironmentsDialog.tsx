@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCollectionsStore } from '@/store/collections'
 import {
   Dialog,
@@ -34,6 +34,15 @@ export function EnvironmentsDialog({ open, onOpenChange }: EnvironmentsDialogPro
   const [revealedSecrets, setRevealedSecrets] = useState<Set<number>>(new Set())
 
   const selectedEnv = environments.find(e => e.name === selectedEnvName) ?? null
+
+  // Keep editingVars in sync when the store's environment data changes (e.g.
+  // after pm.environment.set() writes back from a script), but only when the
+  // user has no unsaved edits of their own.
+  useEffect(() => {
+    if (!isDirty && selectedEnv) {
+      setEditingVars(selectedEnv.variables.map(v => ({ ...v })))
+    }
+  }, [selectedEnv, isDirty])
 
   const handleSelectEnv = (env: Environment) => {
     setSelectedEnvName(env.name)
