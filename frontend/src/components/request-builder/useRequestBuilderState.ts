@@ -387,7 +387,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
   }
 
   const handleSaveUrlVariable = useCallback(async (name: string, nextValue: string) => {
-    const { activeCollection, activeEnvironment, environments, collectionVariables } = useCollectionsStore.getState()
+    const { activeCollection, activeEnvironment, collectionVariables } = useCollectionsStore.getState()
     if (!activeCollection) return
 
     const envMatch = activeEnvironment?.variables.find(v => v.key === name)
@@ -398,9 +398,8 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
           v.key === name ? { ...v, value: nextValue, enabled: true } : v
         ),
       }
+      // saveEnvironment fetches fresh data and syncs activeEnvironment internally
       await useCollectionsStore.getState().saveEnvironment(activeCollection.name, updatedEnv)
-      const refreshedEnv = environments.find(e => e.name === activeEnvironment.name) ?? updatedEnv
-      useCollectionsStore.getState().setActiveEnvironment(refreshedEnv)
       return
     }
 
@@ -421,11 +420,8 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
           { key: name, value: nextValue, enabled: true, secret: false },
         ],
       }
+      // saveEnvironment fetches fresh data and syncs activeEnvironment internally
       await useCollectionsStore.getState().saveEnvironment(activeCollection.name, updatedEnv)
-      const refreshedEnv = useCollectionsStore
-        .getState()
-        .environments.find(e => e.name === activeEnvironment.name) ?? updatedEnv
-      useCollectionsStore.getState().setActiveEnvironment(refreshedEnv)
       return
     }
 
