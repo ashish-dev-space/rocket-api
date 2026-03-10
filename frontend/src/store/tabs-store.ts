@@ -121,7 +121,7 @@ const normalizeSession = (
   persisted?: Partial<Pick<TabsState, 'tabs' | 'activeTabId'>>
 ): Pick<TabsState, 'tabs' | 'activeTabId'> => {
   if (!persisted?.tabs || persisted.tabs.length === 0) {
-    return createInitialSession()
+    return { tabs: [], activeTabId: '' }
   }
 
   const tabs = persisted.tabs
@@ -168,7 +168,6 @@ export const toPersistedTabsSession = (
 
 export const useTabsStore = create<TabsState>()(
   persist((set, get) => {
-  const initialSession = createInitialSession()
   const loadRequestIntoTab = (
     tabId: string,
     request: HttpRequest,
@@ -215,8 +214,8 @@ export const useTabsStore = create<TabsState>()(
     }))
 
   return {
-    tabs: initialSession.tabs,
-    activeTabId: initialSession.activeTabId,
+    tabs: [],
+    activeTabId: '',
 
     newTab: () => {
       const tab = createTab()
@@ -227,10 +226,8 @@ export const useTabsStore = create<TabsState>()(
       const { tabs } = get()
 
       if (tabs.length === 1) {
-        // Keep a fresh tab when closing the last one.
-        const fresh = createTab()
         loadVersionByTabId.clear()
-        set({ tabs: [fresh], activeTabId: fresh.id })
+        set({ tabs: [], activeTabId: '' })
         return
       }
 

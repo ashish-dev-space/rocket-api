@@ -36,6 +36,7 @@ describe('tabs-store save-target and dirty semantics', () => {
 
   it('does not mark dirty for no-op field updates', async () => {
     const useTabsStore = await loadStore()
+    useTabsStore.getState().newTab()
     const state = useTabsStore.getState()
 
     state.updateActiveUrl('')
@@ -56,6 +57,7 @@ describe('tabs-store save-target and dirty semantics', () => {
     )
 
     const useTabsStore = await loadStore()
+    useTabsStore.getState().newTab()
     useTabsStore.getState().updateActiveUrl('https://api.example.com/one')
     const savePromise = useTabsStore.getState().saveActiveTab('example')
 
@@ -77,6 +79,7 @@ describe('tabs-store save-target and dirty semantics', () => {
     saveRequestMock.mockResolvedValue({ path: 'requests/scripted.bru' })
 
     const useTabsStore = await loadStore()
+    useTabsStore.getState().newTab()
     useTabsStore.getState().updateActiveScripts({
       language: 'typescript',
       preRequest: "pm.environment.set('token', 'abc')",
@@ -103,6 +106,7 @@ describe('tabs-store save-target and dirty semantics', () => {
     )
 
     const useTabsStore = await loadStore()
+    useTabsStore.getState().newTab()
     const state = useTabsStore.getState()
     const tabAId = state.activeTabId
 
@@ -132,6 +136,7 @@ describe('tabs-store save-target and dirty semantics', () => {
 
   it('focuses existing tab when request is already open instead of reopening', async () => {
     const useTabsStore = await loadStore()
+    useTabsStore.getState().newTab()
     const state = useTabsStore.getState()
 
     state.loadRequestInActiveTab(
