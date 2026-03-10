@@ -76,6 +76,7 @@ export function RequestBuilderTabs({
 }: RequestBuilderTabsProps) {
   const [activeTab, setActiveTab] = useState('params')
   const [bodyLanguage, setBodyLanguage] = useState('plaintext')
+  const [activeScriptTab, setActiveScriptTab] = useState<'preRequest' | 'postResponse'>('preRequest')
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
@@ -97,7 +98,7 @@ export function RequestBuilderTabs({
         </TabsTrigger>
       </TabsList>
 
-      <div className="flex-1 overflow-auto p-3">
+      <div className={`flex-1 overflow-auto p-3 ${activeTab === 'scripts' ? 'hidden' : ''}`}>
         <TabsContent value="params" className="mt-0 h-full">
           <div className="space-y-2">
             <div className="text-[11px] font-medium text-muted-foreground">Path Params</div>
@@ -487,21 +488,26 @@ export function RequestBuilderTabs({
           </div>
         </TabsContent>
 
-        {/* forceMount keeps Monaco editors mounted across tab switches, preserving state. */}
-        <TabsContent value="scripts" className="mt-0 h-full data-[state=inactive]:hidden" forceMount>
-          <div className="space-y-3 h-full flex flex-col">
-            <div className="flex items-center gap-2">
+      </div>
+
+      {/* forceMount keeps Monaco editors mounted across tab switches, preserving state.
+           Lives outside the scroll wrapper so it can fill full height edge-to-edge. */}
+      <TabsContent value="scripts" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden flex flex-col" forceMount>
+        <Tabs value={activeScriptTab} onValueChange={(v) => setActiveScriptTab(v as 'preRequest' | 'postResponse')} className="flex-1 min-h-0 flex flex-col">
+          <TabsList className="w-full justify-start rounded-none border-b border-border/70 bg-card/60 h-9 px-3">
+            <TabsTrigger value="preRequest" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              Pre-request
+            </TabsTrigger>
+            <TabsTrigger value="postResponse" className="text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">
+              Post-response
+            </TabsTrigger>
+            <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Language</span>
               <Select
                 value={scripts.language}
-                onValueChange={(v) =>
-                  setScripts({
-                    ...scripts,
-                    language: v as Scripts['language'],
-                  })
-                }
+                onValueChange={(v) => setScripts({ ...scripts, language: v as Scripts['language'] })}
               >
-                <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectTrigger className="w-[130px] h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -510,34 +516,31 @@ export function RequestBuilderTabs({
                 </SelectContent>
               </Select>
             </div>
+          </TabsList>
 
-            <div className="grid grid-cols-1 gap-3 flex-1 min-h-[260px]">
-              <div className="border rounded overflow-hidden min-h-[120px] flex flex-col">
-                <div className="text-[11px] px-2 py-1 border-b bg-muted/30 text-muted-foreground">Pre-request script</div>
-                <div className="flex-1 min-h-[100px]">
-                  <MonacoEditor
-                    height="100%"
-                    language={scripts.language}
-                    value={scripts.preRequest}
-                    onChange={(value) => setScripts({ ...scripts, preRequest: value })}
-                  />
-                </div>
+          {/* Full-height editors — both mounted, only one visible */}
+          <div className="flex-1 min-h-0 p-3 flex flex-col">
+            <div className="flex-1 border rounded min-h-[200px] relative">
+              <div className={`absolute inset-0 ${activeScriptTab === 'preRequest' ? '' : 'hidden'}`}>
+                <MonacoEditor
+                  height="100%"
+                  language={scripts.language}
+                  value={scripts.preRequest}
+                  onChange={(value) => setScripts({ ...scripts, preRequest: value })}
+                />
               </div>
-              <div className="border rounded overflow-hidden min-h-[120px] flex flex-col">
-                <div className="text-[11px] px-2 py-1 border-b bg-muted/30 text-muted-foreground">Post-response script</div>
-                <div className="flex-1 min-h-[100px]">
-                  <MonacoEditor
-                    height="100%"
-                    language={scripts.language}
-                    value={scripts.postResponse}
-                    onChange={(value) => setScripts({ ...scripts, postResponse: value })}
-                  />
-                </div>
+              <div className={`absolute inset-0 ${activeScriptTab === 'postResponse' ? '' : 'hidden'}`}>
+                <MonacoEditor
+                  height="100%"
+                  language={scripts.language}
+                  value={scripts.postResponse}
+                  onChange={(value) => setScripts({ ...scripts, postResponse: value })}
+                />
               </div>
             </div>
           </div>
-        </TabsContent>
-      </div>
+        </Tabs>
+      </TabsContent>
     </Tabs>
   )
 }

@@ -9,7 +9,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+    font-family: "Inter Variable", "Inter", "Segoe UI", sans-serif;
   }
   :root {
     --background: 214 44% 98%;

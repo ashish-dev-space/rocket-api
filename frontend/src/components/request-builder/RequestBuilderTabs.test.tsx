@@ -56,8 +56,8 @@ describe('RequestBuilderTabs scripts UI', () => {
   it('shows a Scripts tab with pre/post script panes', () => {
     renderComponent()
 
-    expect(screen.getByText('Pre-request script')).toBeInTheDocument()
-    expect(screen.getByText('Post-response script')).toBeInTheDocument()
+    expect(screen.getByText('Pre-request')).toBeInTheDocument()
+    expect(screen.getByText('Post-response')).toBeInTheDocument()
   })
 
   it('calls setScripts when editing script content', () => {

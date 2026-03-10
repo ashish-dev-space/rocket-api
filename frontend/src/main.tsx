@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import '@fontsource-variable/inter'
 import AppRouter from '@/AppRouter'
 import './globals.css'
 
