@@ -260,6 +260,16 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
       const { fetchHistory } = useHistoryStore.getState()
       fetchHistory()
 
+      // Write script-mutated variables back to env/collection vars (Postman-style).
+      // preScriptResult variables are superseded by postResponse, so merge in order.
+      const scriptVars: Record<string, string> = {
+        ...(httpResponse.preScriptResult?.variables ?? {}),
+        ...(httpResponse.scriptResult?.variables ?? {}),
+      }
+      for (const [key, value] of Object.entries(scriptVars)) {
+        await handleSaveUrlVariable(key, value)
+      }
+
       if (onRequestSent) onRequestSent(request, httpResponse)
     } catch (error) {
       setActiveTabResponse({
