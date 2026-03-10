@@ -18,6 +18,8 @@ export interface HttpResponse {
   body: string
   size: number
   time: number
+  preScriptResult?: ScriptResult
+  scriptResult?: ScriptResult
 }
 
 export interface Header {
@@ -127,6 +129,18 @@ export interface Scripts {
   postResponse: string
 }
 
+export interface ScriptTestResult {
+  name: string
+  passed: boolean
+  error?: string
+}
+
+export interface ScriptResult {
+  tests: ScriptTestResult[]
+  variables: Record<string, string>
+  consoleLogs: string[]
+}
+
 export interface ApiResponse<T = unknown> {
   data: T
   message?: string
@@ -189,4 +203,6 @@ export interface ConsoleEntry {
   requestBody: string
   responseHeaders: Record<string, string>
   responseBody: string
+  consoleLogs: string[]
+  scriptTests: ScriptTestResult[]
 }
