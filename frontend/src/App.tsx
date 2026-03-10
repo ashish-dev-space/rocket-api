@@ -62,7 +62,8 @@ function App() {
     setActiveCollection,
   } = useCollectionsStore()
   const tabs = useTabsStore(state => state.tabs)
-  const activeTab = useTabsStore(state => state.tabs.find(t => t.id === state.activeTabId))
+  const activeTabId = useTabsStore(state => state.activeTabId)
+  const activeTab = tabs.find(t => t.id === activeTabId)
   
   // WebSocket for real-time updates
   useWebSocket(runtimeConfig.wsUrl, {
