@@ -53,6 +53,7 @@ Expected: HTTP 200 and healthy status.
 - Current default backend URL is `http://localhost:8080/api/v1`.
 - Theme persistence key is `rocket-theme` in localStorage.
 - Request tab/session persistence key is `rocket-api:tabs-session:v1` in localStorage.
+- **Tab persistence:** The app allows an empty tab list. On first load (or when localStorage is cleared), no tabs are restored and the welcome screen is shown. This is intentional — there is no auto-created blank tab.
 
 ### 4.1 Script Runtime Notes
 
