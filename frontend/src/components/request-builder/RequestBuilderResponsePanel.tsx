@@ -112,7 +112,7 @@ export function RequestBuilderResponsePanel({
                     Copy
                   </Button>
                 </div>
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 border rounded">
                   <MonacoEditor
                     height="100%"
                     language="json"
