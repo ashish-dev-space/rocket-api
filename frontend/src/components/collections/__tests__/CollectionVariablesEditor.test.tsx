@@ -2,8 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CollectionVariablesEditor } from '@/components/collections/CollectionVariablesEditor'
 
-type MockCollectionState = {
+type MockCollectionsState = {
   activeCollection: { name: string } | null
+}
+
+type MockCollectionSettingsState = {
   collectionVariables: Array<{
     key: string
     value: string
@@ -13,20 +16,29 @@ type MockCollectionState = {
   saveCollectionVariables: ReturnType<typeof vi.fn>
 }
 
-let mockState: MockCollectionState = {
+let mockCollectionsState: MockCollectionsState = {
   activeCollection: { name: 'collection-a' },
+}
+
+let mockCollectionSettingsState: MockCollectionSettingsState = {
   collectionVariables: [],
   saveCollectionVariables: vi.fn(),
 }
 
-vi.mock('@/store/collections', () => ({
-  useCollectionsStore: () => mockState,
+vi.mock('@/features/collections/hooks/useCollections', () => ({
+  useCollections: () => mockCollectionsState,
+}))
+
+vi.mock('@/features/collections/hooks/useCollectionSettings', () => ({
+  useCollectionSettings: () => mockCollectionSettingsState,
 }))
 
 describe('CollectionVariablesEditor', () => {
   it('refreshes variable rows when active collection context changes', () => {
-    mockState = {
+    mockCollectionsState = {
       activeCollection: { name: 'collection-a' },
+    }
+    mockCollectionSettingsState = {
       collectionVariables: [
         { key: 'host', value: 'https://a.example.com', enabled: true, secret: false },
       ],
@@ -37,8 +49,10 @@ describe('CollectionVariablesEditor', () => {
     expect(screen.getByDisplayValue('host')).toBeInTheDocument()
     expect(screen.getByDisplayValue('https://a.example.com')).toBeInTheDocument()
 
-    mockState = {
+    mockCollectionsState = {
       activeCollection: { name: 'collection-b' },
+    }
+    mockCollectionSettingsState = {
       collectionVariables: [
         { key: 'host', value: 'https://b.example.com', enabled: true, secret: false },
       ],

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTabsStore, isRequestTab } from '@/store/tabs-store'
-import { useCollectionsStore } from '@/store/collections'
+import { useCollections } from '@/features/collections/hooks/useCollections'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -17,7 +17,7 @@ import { METHOD_TEXT_COLORS } from '@/lib/constants'
 
 export function RequestTabs() {
   const { tabs, activeTabId, newTab, closeTab, setActiveTab } = useTabsStore()
-  const { collections, activeCollection, setActiveCollection } = useCollectionsStore()
+  const { collections, activeCollection, setActiveCollection } = useCollections()
   const [closeCandidate, setCloseCandidate] = useState<string | null>(null)
 
   const handleActivateTab = (tabId: string) => {

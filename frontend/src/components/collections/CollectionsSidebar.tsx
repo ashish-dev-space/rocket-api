@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useCollectionsStore } from '@/store/collections'
+import { useCollections } from '@/features/collections/hooks/useCollections'
+import { useCollectionTree } from '@/features/collections/hooks/useCollectionTree'
+import { useHistoryEntries } from '@/features/history/hooks/useHistoryEntries'
 import { useTabsStore } from '@/store/tabs-store'
-import { useHistoryStore } from '@/store/history'
 import { BruFile } from '@/types'
 import { apiService } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -98,23 +99,25 @@ export function CollectionsSidebar({ width = 288 }: CollectionsSidebarProps) {
     entries: historyEntries, 
     isLoading: historyLoading, 
     fetchHistory 
-  } = useHistoryStore()
+  } = useHistoryEntries()
   
   const { 
     collections, 
-    collectionTree,
     activeCollection, 
     isCollectionsLoading,
-    isCollectionTreeLoading,
     error,
     fetchCollections,
-    fetchCollectionTree,
     createCollection,
     deleteCollection,
     setActiveCollection,
     importBruno,
     exportBruno
-  } = useCollectionsStore()
+  } = useCollections()
+  const {
+    collectionTree,
+    isCollectionTreeLoading,
+    fetchCollectionTree,
+  } = useCollectionTree(activeCollection?.name)
   
   const { loadRequestFromPath, loadRequestInActiveTab, openCollectionOverview } = useTabsStore()
 
@@ -134,12 +137,6 @@ export function CollectionsSidebar({ width = 288 }: CollectionsSidebarProps) {
   useEffect(() => {
     fetchCollections()
   }, [fetchCollections])
-
-  useEffect(() => {
-    if (activeCollection) {
-      fetchCollectionTree(activeCollection.name)
-    }
-  }, [activeCollection, fetchCollectionTree])
 
   // Fetch history when history tab is active
   useEffect(() => {

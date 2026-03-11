@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Cookie, LayoutTemplate, Plus, Upload } from 'lucide-react'
 import { apiService } from '@/lib/api'
-import { useCollectionsStore } from '@/store/collections'
+import { useCollections } from '@/features/collections/hooks/useCollections'
 import { useTabsStore } from '@/store/tabs-store'
 import type { Cookie as CookieType, Template } from '@/types'
 
@@ -31,7 +31,7 @@ interface GlobalStatusBarProps {
 }
 
 export function GlobalStatusBar({ isConsoleOpen, onConsoleToggle }: GlobalStatusBarProps) {
-  const { createCollection, importBruno } = useCollectionsStore()
+  const { createCollection, importBruno } = useCollections()
   const { loadRequestInActiveTab } = useTabsStore()
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)

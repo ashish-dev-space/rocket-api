@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useCollectionsStore } from '@/store/collections'
+import { useCollections } from '@/features/collections/hooks/useCollections'
+import { useCollectionSettings } from '@/features/collections/hooks/useCollectionSettings'
 import {
   Dialog,
   DialogContent,
@@ -17,14 +18,14 @@ interface EnvironmentsDialogProps {
 }
 
 export function EnvironmentsDialog({ open, onOpenChange }: EnvironmentsDialogProps) {
+  const { activeCollection } = useCollections()
   const {
     environments,
-    activeCollection,
     activeEnvironment,
     createEnvironment,
     saveEnvironment,
     deleteEnvironment,
-  } = useCollectionsStore()
+  } = useCollectionSettings(activeCollection?.name)
 
   const [selectedEnvName, setSelectedEnvName] = useState<string | null>(null)
   const [editingVars, setEditingVars] = useState<EnvironmentVariable[]>([])

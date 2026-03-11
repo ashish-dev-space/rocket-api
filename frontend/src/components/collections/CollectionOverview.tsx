@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useCollectionsStore } from '@/store/collections'
-import { useHistoryStore } from '@/store/history'
+import { useCollections } from '@/features/collections/hooks/useCollections'
+import { useCollectionTree } from '@/features/collections/hooks/useCollectionTree'
+import { useCollectionSettings } from '@/features/collections/hooks/useCollectionSettings'
+import { useHistoryEntries } from '@/features/history/hooks/useHistoryEntries'
 import { computeCollectionStats } from '@/lib/collection-stats'
 import { METHOD_BG_COLORS, METHOD_TEXT_COLORS } from '@/lib/constants'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -30,15 +32,15 @@ interface CollectionOverviewProps {
 export function CollectionOverview({ collectionName }: CollectionOverviewProps) {
   const {
     collections,
-    collectionTree,
-    environments,
     activeCollection,
     setActiveCollection,
     exportBruno,
     exportPostman,
-  } = useCollectionsStore()
+  } = useCollections()
+  const { collectionTree } = useCollectionTree(collectionName)
+  const { environments } = useCollectionSettings(collectionName)
 
-  const { entries: historyEntries, fetchHistory } = useHistoryStore()
+  const { entries: historyEntries, fetchHistory } = useHistoryEntries()
 
   const [description, setDescription] = useState('')
   const [isEditingDescription, setIsEditingDescription] = useState(false)

@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useCollectionsStore } from '@/store/collections'
+import { useCollections } from '@/features/collections/hooks/useCollections'
+import { useCollectionSettings } from '@/features/collections/hooks/useCollectionSettings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Trash2, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import type { CollectionVar } from '@/types'
 
 export function CollectionVariablesEditor() {
-  const { activeCollection, collectionVariables, saveCollectionVariables } = useCollectionsStore()
+  const { activeCollection } = useCollections()
+  const { collectionVariables, saveCollectionVariables } = useCollectionSettings(
+    activeCollection?.name
+  )
 
   const [editingVars, setEditingVars] = useState<CollectionVar[]>(() =>
     collectionVariables.map(v => ({ ...v }))
