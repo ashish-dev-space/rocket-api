@@ -1,10 +1,10 @@
 import type { IRouteObject } from '@/providers/Routes/Context'
-import { CollectionOverview } from '@/components/collections/CollectionOverview'
+import { CollectionHistoryRouteSync } from '@/features/collections/route-sync'
 
 export const historyRoutes: IRouteObject[] = [
   {
     path: 'collections/:collectionName/history',
-    element: <CollectionOverview />,
+    element: <CollectionHistoryRouteSync />,
   },
 ]
 

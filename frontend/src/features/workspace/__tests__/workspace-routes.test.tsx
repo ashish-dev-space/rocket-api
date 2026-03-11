@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { MemoryRouter, useRoutes } from 'react-router-dom'
+import { MemoryRouter, Outlet, useRoutes } from 'react-router-dom'
 import routes from '@/app/routes'
 
 vi.mock('@/App', () => ({
-  default: () => <div data-testid="workspace-root">WorkspaceRoot</div>,
+  default: () => (
+    <>
+      <div data-testid="workspace-root">WorkspaceRoot</div>
+      <Outlet />
+    </>
+  ),
 }))
 
 vi.mock('@/features/workspace/components/WorkspaceShell', () => ({

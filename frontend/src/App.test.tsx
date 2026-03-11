@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
 const fetchCollectionsMock = vi.fn()
 const fetchCollectionTreeMock = vi.fn()
@@ -118,6 +119,10 @@ vi.mock('@/lib/runtime-config', () => ({
   }),
 }))
 
+vi.mock('@/features/workspace/hooks/useRouteSyncedTabs', () => ({
+  useRouteSyncedTabs: vi.fn(),
+}))
+
 describe('App websocket file-change handling', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -134,7 +139,11 @@ describe('App websocket file-change handling', () => {
 
   it('uses the default sidebar width when no stored width exists', async () => {
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     expect(screen.getByTestId('workspace-shell')).toBeInTheDocument()
     expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '288px' })
@@ -144,7 +153,11 @@ describe('App websocket file-change handling', () => {
     window.localStorage.setItem('rocket-api:sidebar-width', '360')
 
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '360px' })
   })
@@ -153,7 +166,11 @@ describe('App websocket file-change handling', () => {
     window.localStorage.setItem('rocket-api:sidebar-width', '40')
 
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '288px' })
   })
@@ -162,7 +179,11 @@ describe('App websocket file-change handling', () => {
     consumeCollectionVariablesSelfEchoMock.mockReturnValue(true)
 
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     capturedWebSocketOptions.current?.onMessage?.({
       type: 'file_change',
@@ -181,7 +202,11 @@ describe('App websocket file-change handling', () => {
     consumeCollectionVariablesSelfEchoMock.mockReturnValue(false)
 
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     capturedWebSocketOptions.current?.onMessage?.({
       type: 'file_change',
@@ -198,7 +223,11 @@ describe('App websocket file-change handling', () => {
 
   it('subscribes to the active collection over websocket', async () => {
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     expect(sendWebSocketMessageMock).toHaveBeenCalledWith({
       type: 'subscribe',
@@ -208,13 +237,25 @@ describe('App websocket file-change handling', () => {
 
   it('resubscribes when the websocket reconnects', async () => {
     const { default: App } = await import('@/App')
-    const { rerender } = render(<App />)
+    const { rerender } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     sendWebSocketMessageMock.mockClear()
     isWebSocketConnectedMock = false
-    rerender(<App />)
+    rerender(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
     isWebSocketConnectedMock = true
-    rerender(<App />)
+    rerender(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     expect(sendWebSocketMessageMock).toHaveBeenCalledWith({
       type: 'subscribe',
@@ -224,7 +265,11 @@ describe('App websocket file-change handling', () => {
 
   it('does not refetch the collection list for ordinary active-collection file writes', async () => {
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     capturedWebSocketOptions.current?.onMessage?.({
       type: 'file_change',
@@ -238,7 +283,11 @@ describe('App websocket file-change handling', () => {
 
   it('clamps sidebar width while dragging the resize handle', async () => {
     const { default: App } = await import('@/App')
-    render(<App />)
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    )
 
     fireEvent.pointerDown(screen.getByTestId('sidebar-resize-handle'), { clientX: 288 })
     fireEvent.pointerMove(window, { clientX: 120 })

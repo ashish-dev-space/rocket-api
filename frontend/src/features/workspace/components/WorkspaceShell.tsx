@@ -14,6 +14,8 @@ import { useTabsStore, isRequestTab } from '@/store/tabs-store'
 import { Sun, Moon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getRuntimeConfig } from '@/lib/runtime-config'
+import { Outlet } from 'react-router-dom'
+import { useRouteSyncedTabs } from '@/features/workspace/hooks/useRouteSyncedTabs'
 
 const runtimeConfig = getRuntimeConfig()
 const SIDEBAR_WIDTH_STORAGE_KEY = 'rocket-api:sidebar-width'
@@ -77,6 +79,7 @@ export function WorkspaceShell() {
   const tabs = useTabsStore(state => state.tabs)
   const activeTabId = useTabsStore(state => state.activeTabId)
   const activeTab = tabs.find(t => t.id === activeTabId)
+  useRouteSyncedTabs()
 
   const handleFileChangeMessage = (message: {
     collection?: string
@@ -240,6 +243,9 @@ export function WorkspaceShell() {
 
           <main className="flex-1 flex flex-col min-w-0 bg-transparent">
             <RequestTabs />
+            <div className="hidden">
+              <Outlet />
+            </div>
             {tabs.length === 0 ? (
               <WelcomeScreen />
             ) : activeTab && !isRequestTab(activeTab) ? (
