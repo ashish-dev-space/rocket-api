@@ -6,6 +6,7 @@ export function useCollectionSettings(collectionName?: string) {
   const activeEnvironment = useCollectionsStore(state => state.activeEnvironment)
   const collectionVariables = useCollectionsStore(state => state.collectionVariables)
   const fetchEnvironments = useCollectionsStore(state => state.fetchEnvironments)
+  const fetchEnvironmentDetail = useCollectionsStore(state => state.fetchEnvironmentDetail)
   const setActiveEnvironment = useCollectionsStore(state => state.setActiveEnvironment)
   const createEnvironment = useCollectionsStore(state => state.createEnvironment)
   const saveEnvironment = useCollectionsStore(state => state.saveEnvironment)
@@ -27,6 +28,7 @@ export function useCollectionSettings(collectionName?: string) {
     activeEnvironment,
     collectionVariables,
     fetchEnvironments,
+    fetchEnvironmentDetail,
     setActiveEnvironment,
     createEnvironment,
     saveEnvironment,

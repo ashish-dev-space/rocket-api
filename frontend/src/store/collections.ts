@@ -24,6 +24,7 @@ interface CollectionsState {
   setActiveCollection: (collection: CollectionSummary | null) => void
   
   fetchEnvironments: (collection: string) => Promise<void>
+  fetchEnvironmentDetail: (collection: string, name: string) => Promise<void>
   setActiveEnvironment: (environment: Environment | null) => void
   createEnvironment: (collectionName: string, name: string) => Promise<void>
   saveEnvironment: (collectionName: string, env: Environment) => Promise<void>
@@ -164,8 +165,12 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
         // Restore last-used environment for this collection.
         const savedName = localStorage.getItem(`rocket-api:active-env:${collection.name}`)
         if (savedName) {
-          const env = get().environments.find(e => e.name === savedName)
-          if (env) set({ activeEnvironment: env })
+          const stub = get().environments.find(e => e.name === savedName)
+          if (stub) {
+            set({ activeEnvironment: stub })
+            // Lazy-load full details for only the active environment.
+            get().fetchEnvironmentDetail(collection.name, savedName)
+          }
         }
       })
       get().fetchCollectionVariables(collection.name)
@@ -179,27 +184,35 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
       return
     }
 
-    const request = (async () => {
-      const envNames = await apiService.getEnvironments(collection)
-      const results = await Promise.allSettled(
-        envNames.map(name => apiService.getEnvironment(collection, name))
+    // Fetch only the list of names and store lightweight stubs.
+    // Full variable details are loaded on demand via fetchEnvironmentDetail.
+    const request = apiService
+      .getEnvironments(collection)
+      .then((names): Environment[] =>
+        names.map(name => ({ id: name, name, variables: [] }))
       )
-      return results
-        .filter(
-          (result): result is PromiseFulfilledResult<Environment> =>
-            result.status === 'fulfilled'
-        )
-        .map(result => result.value)
-    })()
     fetchEnvironmentsInFlight.set(collection, request)
 
     try {
-      const envs = await request
-      set({ environments: envs })
+      const stubs = await request
+      set({ environments: stubs })
     } catch (error) {
       console.error('Failed to fetch environments:', error)
     } finally {
       fetchEnvironmentsInFlight.delete(collection)
+    }
+  },
+
+  fetchEnvironmentDetail: async (collection: string, name: string) => {
+    try {
+      const env = await apiService.getEnvironment(collection, name)
+      set(state => ({
+        environments: state.environments.map(e => e.name === name ? env : e),
+        activeEnvironment:
+          state.activeEnvironment?.name === name ? env : state.activeEnvironment,
+      }))
+    } catch (error) {
+      console.error('Failed to fetch environment detail:', error)
     }
   },
   

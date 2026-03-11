@@ -25,6 +25,7 @@ export function EnvironmentsDialog({ open, onOpenChange }: EnvironmentsDialogPro
     createEnvironment,
     saveEnvironment,
     deleteEnvironment,
+    fetchEnvironmentDetail,
   } = useCollectionSettings(activeCollection?.name)
 
   const [selectedEnvName, setSelectedEnvName] = useState<string | null>(null)
@@ -56,9 +57,12 @@ export function EnvironmentsDialog({ open, onOpenChange }: EnvironmentsDialogPro
 
   const handleSelectEnv = (env: Environment) => {
     setSelectedEnvName(env.name)
-    setEditingVars(env.variables.map(v => ({ ...v })))
     setIsDirty(false)
     setRevealedSecrets(new Set())
+    // Lazy-load full variable details for the selected environment.
+    if (activeCollection) {
+      fetchEnvironmentDetail(activeCollection.name, env.name)
+    }
   }
 
   const handleVarChange = (index: number, field: keyof EnvironmentVariable, value: string | boolean) => {
