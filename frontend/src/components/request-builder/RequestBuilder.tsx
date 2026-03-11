@@ -56,6 +56,7 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
     handleSubmit,
     handleSaveRequest,
     handleSaveUrlVariable,
+    handleImportCurl,
     addHeader,
     removeHeader,
     updateHeader,
@@ -126,6 +127,20 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
                   error instanceof Error
                     ? error.message
                     : 'Unable to update variable value.',
+              })
+            }
+          }}
+          onImportCurl={async (command) => {
+            try {
+              await handleImportCurl(command)
+            } catch (error) {
+              setAlertDialog({
+                isOpen: true,
+                title: 'cURL Import Failed',
+                description:
+                  error instanceof Error
+                    ? error.message
+                    : 'Unable to import cURL command.',
               })
             }
           }}

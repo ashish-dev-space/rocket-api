@@ -35,6 +35,7 @@ interface RequestBuilderToolbarProps {
   onSave: () => Promise<void>
   onSaveParamToken: (tokenName: string, tokenValue: string, target: 'path' | 'query') => Promise<void>
   onSaveVariable: (name: string, value: string) => Promise<void>
+  onImportCurl: (command: string) => Promise<void>
 }
 
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']
@@ -61,6 +62,7 @@ export function RequestBuilderToolbar({
   onSave,
   onSaveParamToken,
   onSaveVariable,
+  onImportCurl,
 }: RequestBuilderToolbarProps) {
   return (
     <div className="px-4 pt-3 pb-4 border-b border-border/70 bg-card/80 backdrop-blur-sm space-y-2">
@@ -139,6 +141,7 @@ export function RequestBuilderToolbar({
               queryParams={queryParams}
               onSaveParamToken={onSaveParamToken}
               onSaveVariable={onSaveVariable}
+              onImportCurl={onImportCurl}
             />
           </div>
 
@@ -186,4 +189,3 @@ export function RequestBuilderToolbar({
     </div>
   )
 }
-

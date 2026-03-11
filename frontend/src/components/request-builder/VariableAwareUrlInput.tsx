@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CollectionVar, Environment, QueryParam } from '@/types'
+import { looksLikeCurlCommand } from '@/lib/curl-parser'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ interface VariableAwareUrlInputProps {
   queryParams?: QueryParam[]
   onSaveVariable: (name: string, value: string) => Promise<void>
   onSaveParamToken?: (name: string, value: string, target: 'path' | 'query') => Promise<void> | void
+  onImportCurl?: (command: string) => void | Promise<void>
 }
 
 interface UrlToken {
@@ -123,6 +125,7 @@ export function VariableAwareUrlInput({
   queryParams = [],
   onSaveVariable,
   onSaveParamToken,
+  onImportCurl,
 }: VariableAwareUrlInputProps) {
   const tokens = useMemo(
     () => parseTokens(value, activeEnvironment, collectionVariables, pathParams, queryParams),
@@ -418,6 +421,13 @@ export function VariableAwareUrlInput({
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onPaste={(event) => {
+            if (!onImportCurl) return
+            const pastedText = event.clipboardData.getData('text')
+            if (!looksLikeCurlCommand(pastedText)) return
+            event.preventDefault()
+            void onImportCurl(pastedText)
+          }}
           placeholder={placeholder}
           className={`${className ?? ''} ${value ? 'text-transparent caret-foreground' : ''}`}
         />

@@ -17,6 +17,7 @@ import { applyApiKeyToQueryParams } from '@/lib/request-auth'
 import { apiService } from '@/lib/api'
 import { mockApiService } from '@/lib/mock-api'
 import { useHistoryStore } from '@/store/history'
+import { parseCurlCommand } from '@/lib/curl-parser'
 
 interface RequestBuilderStateOptions {
   onRequestSent?: (request: HttpRequest, response: HttpResponse) => void
@@ -296,6 +297,43 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
         { key: name, value: nextValue, enabled: true, secret: false },
       ])
   }, [])
+
+  const handleImportCurl = useCallback(async (command: string) => {
+    const parsed = parseCurlCommand(command)
+
+    setMethod(parsed.method)
+    updateActiveMethod(parsed.method)
+
+    setUrl(parsed.url)
+    updateActiveUrl(parsed.url)
+
+    setHeaders(parsed.headers)
+    updateActiveHeaders(parsed.headers)
+
+    setQueryParams(parsed.queryParams)
+    updateActiveQueryParams(parsed.queryParams)
+
+    setBody(parsed.body)
+    updateActiveBody(parsed.body)
+
+    setAuth(parsed.auth)
+    updateActiveAuth(parsed.auth)
+
+    if (parsed.warnings.length > 0) {
+      setAlertDialog({
+        isOpen: true,
+        title: 'cURL Imported With Warnings',
+        description: parsed.warnings.join('\n'),
+      })
+    }
+  }, [
+    updateActiveMethod,
+    updateActiveUrl,
+    updateActiveHeaders,
+    updateActiveQueryParams,
+    updateActiveBody,
+    updateActiveAuth,
+  ])
 
   const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -583,6 +621,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     handleSubmit,
     handleSaveRequest,
     handleSaveUrlVariable,
+    handleImportCurl,
     addHeader,
     removeHeader,
     updateHeader,

@@ -8,6 +8,7 @@ describe('VariableAwareUrlInput', () => {
     activeEnvironment: null,
     collectionVariables: [],
     onSaveVariable: vi.fn().mockResolvedValue(undefined),
+    onImportCurl: vi.fn(),
   }
 
   it('highlights path tokens like :token in the URL input overlay', () => {
@@ -133,5 +134,48 @@ describe('VariableAwareUrlInput', () => {
       expect(screen.queryByPlaceholderText('Parameter value')).not.toBeInTheDocument()
     )
     expect(onSaveParamToken).not.toHaveBeenCalled()
+  })
+
+  it('detects curl paste and routes it to import flow', () => {
+    const onImportCurl = vi.fn()
+
+    render(
+      <VariableAwareUrlInput
+        {...baseProps}
+        value=""
+        onImportCurl={onImportCurl}
+      />
+    )
+
+    fireEvent.paste(screen.getByRole('textbox'), {
+      clipboardData: {
+        getData: () => "curl --request POST 'https://api.example.com/users'",
+      },
+    })
+
+    expect(onImportCurl).toHaveBeenCalledWith(
+      "curl --request POST 'https://api.example.com/users'"
+    )
+    expect(baseProps.onChange).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a normal URL paste as curl import', () => {
+    const onImportCurl = vi.fn()
+
+    render(
+      <VariableAwareUrlInput
+        {...baseProps}
+        value=""
+        onImportCurl={onImportCurl}
+      />
+    )
+
+    fireEvent.paste(screen.getByRole('textbox'), {
+      clipboardData: {
+        getData: () => 'https://api.example.com/users',
+      },
+    })
+
+    expect(onImportCurl).not.toHaveBeenCalled()
   })
 })
