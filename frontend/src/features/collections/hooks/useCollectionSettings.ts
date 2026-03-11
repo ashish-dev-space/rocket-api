@@ -2,29 +2,38 @@ import { useEffect } from 'react'
 import { useCollectionsStore } from '@/store/collections'
 
 export function useCollectionSettings(collectionName?: string) {
-  const result = useCollectionsStore(state => ({
-    environments: state.environments,
-    activeEnvironment: state.activeEnvironment,
-    collectionVariables: state.collectionVariables,
-    fetchEnvironments: state.fetchEnvironments,
-    setActiveEnvironment: state.setActiveEnvironment,
-    createEnvironment: state.createEnvironment,
-    saveEnvironment: state.saveEnvironment,
-    deleteEnvironment: state.deleteEnvironment,
-    fetchCollectionVariables: state.fetchCollectionVariables,
-    saveCollectionVariables: state.saveCollectionVariables,
-  }))
+  const environments = useCollectionsStore(state => state.environments)
+  const activeEnvironment = useCollectionsStore(state => state.activeEnvironment)
+  const collectionVariables = useCollectionsStore(state => state.collectionVariables)
+  const fetchEnvironments = useCollectionsStore(state => state.fetchEnvironments)
+  const setActiveEnvironment = useCollectionsStore(state => state.setActiveEnvironment)
+  const createEnvironment = useCollectionsStore(state => state.createEnvironment)
+  const saveEnvironment = useCollectionsStore(state => state.saveEnvironment)
+  const deleteEnvironment = useCollectionsStore(state => state.deleteEnvironment)
+  const fetchCollectionVariables = useCollectionsStore(state => state.fetchCollectionVariables)
+  const saveCollectionVariables = useCollectionsStore(state => state.saveCollectionVariables)
 
   useEffect(() => {
     if (!collectionName) {
       return
     }
 
-    result.fetchEnvironments(collectionName)
-    result.fetchCollectionVariables(collectionName)
-  }, [collectionName, result])
+    fetchEnvironments(collectionName)
+    fetchCollectionVariables(collectionName)
+  }, [collectionName, fetchEnvironments, fetchCollectionVariables])
 
-  return result
+  return {
+    environments,
+    activeEnvironment,
+    collectionVariables,
+    fetchEnvironments,
+    setActiveEnvironment,
+    createEnvironment,
+    saveEnvironment,
+    deleteEnvironment,
+    fetchCollectionVariables,
+    saveCollectionVariables,
+  }
 }
 
 export default useCollectionSettings
