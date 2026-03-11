@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fetchCollectionsMock = vi.fn()
@@ -68,7 +68,11 @@ vi.mock('@/components/request-builder/RequestTabs', () => ({
 }))
 
 vi.mock('@/components/collections/CollectionsSidebar', () => ({
-  CollectionsSidebar: () => <div>CollectionsSidebar</div>,
+  CollectionsSidebar: ({ width }: { width?: number }) => (
+    <div data-testid="collections-sidebar" style={width ? { width: `${width}px` } : undefined}>
+      CollectionsSidebar
+    </div>
+  ),
 }))
 
 vi.mock('@/components/collections/CollectionOverview', () => ({
@@ -103,6 +107,7 @@ vi.mock('@/lib/runtime-config', () => ({
 
 describe('App websocket file-change handling', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     fetchCollectionsMock.mockReset()
     fetchCollectionTreeMock.mockReset()
     fetchCollectionVariablesMock.mockReset()
@@ -110,6 +115,31 @@ describe('App websocket file-change handling', () => {
     setActiveCollectionMock.mockReset()
     consumeCollectionVariablesSelfEchoMock.mockReset()
     capturedWebSocketOptions.current = undefined
+  })
+
+  it('uses the default sidebar width when no stored width exists', async () => {
+    const { default: App } = await import('@/App')
+    render(<App />)
+
+    expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '288px' })
+  })
+
+  it('restores the sidebar width from localStorage when valid', async () => {
+    window.localStorage.setItem('rocket-api:sidebar-width', '360')
+
+    const { default: App } = await import('@/App')
+    render(<App />)
+
+    expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '360px' })
+  })
+
+  it('ignores invalid stored sidebar widths and falls back to default', async () => {
+    window.localStorage.setItem('rocket-api:sidebar-width', '40')
+
+    const { default: App } = await import('@/App')
+    render(<App />)
+
+    expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '288px' })
   })
 
   it('skips collection variable refetch for one matching collection.bru self-echo', async () => {
@@ -148,5 +178,16 @@ describe('App websocket file-change handling', () => {
       'collection.bru'
     )
     expect(fetchCollectionVariablesMock).toHaveBeenCalledWith('snehal')
+  })
+
+  it('clamps sidebar width while dragging the resize handle', async () => {
+    const { default: App } = await import('@/App')
+    render(<App />)
+
+    fireEvent.pointerDown(screen.getByTestId('sidebar-resize-handle'), { clientX: 288 })
+    fireEvent.pointerMove(window, { clientX: 120 })
+    fireEvent.pointerUp(window)
+
+    expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '220px' })
   })
 })

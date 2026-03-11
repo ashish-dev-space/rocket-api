@@ -18,6 +18,29 @@ import { getRuntimeConfig } from '@/lib/runtime-config'
 
 const queryClient = new QueryClient()
 const runtimeConfig = getRuntimeConfig()
+const SIDEBAR_WIDTH_STORAGE_KEY = 'rocket-api:sidebar-width'
+const DEFAULT_SIDEBAR_WIDTH = 288
+const MIN_SIDEBAR_WIDTH = 220
+const MAX_SIDEBAR_WIDTH = 520
+
+function clampSidebarWidth(width: number) {
+  return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
+}
+
+function getInitialSidebarWidth() {
+  if (typeof window === 'undefined') {
+    return DEFAULT_SIDEBAR_WIDTH
+  }
+
+  const stored = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY))
+  if (!Number.isFinite(stored)) {
+    return DEFAULT_SIDEBAR_WIDTH
+  }
+
+  return stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH
+    ? stored
+    : DEFAULT_SIDEBAR_WIDTH
+}
 
 // Theme Toggle Component
 function ThemeToggle() {
@@ -132,6 +155,32 @@ function App() {
 
   const [isConsoleOpen, setIsConsoleOpen] = useState(false)
   const [consoleHeight, setConsoleHeight] = useState(280)
+  const [sidebarWidth, setSidebarWidth] = useState(getInitialSidebarWidth)
+  const [isSidebarResizing, setIsSidebarResizing] = useState(false)
+
+  useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth))
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    if (!isSidebarResizing) return
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setSidebarWidth(clampSidebarWidth(event.clientX))
+    }
+
+    const handlePointerUp = () => {
+      setIsSidebarResizing(false)
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [isSidebarResizing])
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -156,7 +205,20 @@ function App() {
           </header>
 
           <div className="flex-1 flex overflow-hidden">
-            <CollectionsSidebar />
+            <CollectionsSidebar width={sidebarWidth} />
+            <div
+              data-testid="sidebar-resize-handle"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                setIsSidebarResizing(true)
+              }}
+              className={`w-1.5 shrink-0 cursor-col-resize bg-border/35 transition-colors hover:bg-primary/35 ${
+                isSidebarResizing ? 'bg-primary/50' : ''
+              }`}
+            />
             
             <main className="flex-1 flex flex-col min-w-0 bg-transparent">
               <RequestTabs />

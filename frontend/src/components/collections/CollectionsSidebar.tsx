@@ -54,7 +54,11 @@ interface TreeNode {
   children?: TreeNode[]
 }
 
-export function CollectionsSidebar() {
+interface CollectionsSidebarProps {
+  width?: number
+}
+
+export function CollectionsSidebar({ width = 288 }: CollectionsSidebarProps) {
   const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -520,7 +524,10 @@ export function CollectionsSidebar() {
 
   return (
     <TooltipProvider>
-    <aside className="w-72 border-r border-border/70 bg-card/80 backdrop-blur-sm flex flex-col shrink-0">
+    <aside
+      className="border-r border-border/70 bg-card/80 backdrop-blur-sm flex flex-col shrink-0"
+      style={{ width: `${width}px` }}
+    >
       {/* Sidebar Header */}
       <div className="flex h-11 items-center gap-1.5 border-b border-border/70 bg-card/90 px-2.5">
         <Button 
