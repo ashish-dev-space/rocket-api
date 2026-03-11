@@ -136,6 +136,7 @@ describe('App websocket file-change handling', () => {
     const { default: App } = await import('@/App')
     render(<App />)
 
+    expect(screen.getByTestId('workspace-shell')).toBeInTheDocument()
     expect(screen.getByTestId('collections-sidebar')).toHaveStyle({ width: '288px' })
   })
 

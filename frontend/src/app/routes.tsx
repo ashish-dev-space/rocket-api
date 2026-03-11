@@ -1,12 +1,9 @@
 import { IRouteObject } from '@/providers/Routes/Context'
-import App from '@/App'
+import { workspaceRoutes } from '@/features/workspace/routes'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 
 export const routes: IRouteObject[] = [
-  {
-    path: '/',
-    element: <App />,
-  },
+  ...workspaceRoutes,
   {
     path: '*',
     element: <NotFoundPage />,
@@ -14,4 +11,3 @@ export const routes: IRouteObject[] = [
 ]
 
 export default routes
-
