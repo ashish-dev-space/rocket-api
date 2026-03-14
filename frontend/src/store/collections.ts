@@ -154,7 +154,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
       return
     }
 
-    set({ activeCollection: collection, activeEnvironment: null, collectionVariables: [] })
+    set({ activeCollection: collection, collectionTree: null, activeEnvironment: null, collectionVariables: [] })
     if (collection) {
       localStorage.setItem(ACTIVE_COLLECTION_STORAGE_KEY, collection.name)
     } else {
