@@ -1,0 +1,102 @@
+<h2>Response Panel Empty State</h2>
+<p class="subtitle">Which illustration style fits Rocket API best? Click to select.</p>
+
+<div class="cards">
+  <!-- Option A: Rocket illustration with CSS -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a0f;padding:32px;display:flex;align-items:center;justify-content:center;min-height:280px;">
+      <div style="text-align:center;">
+        <!-- Rocket SVG illustration -->
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Exhaust trail -->
+          <ellipse cx="60" cy="108" rx="12" ry="4" fill="#3b82f6" opacity="0.15"/>
+          <ellipse cx="60" cy="104" rx="8" ry="3" fill="#3b82f6" opacity="0.25"/>
+          <!-- Rocket body -->
+          <path d="M60 20 C60 20, 78 40, 78 70 C78 85, 70 95, 60 95 C50 95, 42 85, 42 70 C42 40, 60 20, 60 20Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+          <!-- Nose cone -->
+          <path d="M60 20 C60 20, 68 35, 68 45 C68 45, 60 42, 52 45 C52 35, 60 20, 60 20Z" fill="#3b82f6" opacity="0.8"/>
+          <!-- Window -->
+          <circle cx="60" cy="55" r="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+          <circle cx="60" cy="55" r="5" fill="#0f172a"/>
+          <circle cx="57" cy="52" r="2" fill="#3b82f6" opacity="0.4"/>
+          <!-- Fins -->
+          <path d="M42 75 L30 90 L42 88Z" fill="#3b82f6" opacity="0.6"/>
+          <path d="M78 75 L90 90 L78 88Z" fill="#3b82f6" opacity="0.6"/>
+          <!-- Flame -->
+          <path d="M54 95 Q60 115 66 95" fill="#f59e0b" opacity="0.7"/>
+          <path d="M56 95 Q60 108 64 95" fill="#ef4444" opacity="0.5"/>
+        </svg>
+        <div style="margin-top:20px;">
+          <p style="color:#e2e8f0;font-size:15px;font-weight:600;margin:0;">Ready for liftoff</p>
+          <p style="color:#64748b;font-size:13px;margin:6px 0 0;">Send a request to see the response here</p>
+        </div>
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span style="color:#475569;font-size:11px;">Press</span>
+          <span style="background:#1e293b;border:1px solid #334155;border-radius:4px;padding:2px 8px;color:#94a3b8;font-size:11px;font-family:monospace;">Ctrl+Enter</span>
+          <span style="color:#475569;font-size:11px;">to send</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Rocket Illustration</h3>
+      <p>Custom SVG rocket matching the app branding. "Ready for liftoff" messaging with keyboard shortcut hint.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Minimal with arrow -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a0f;padding:32px;display:flex;align-items:center;justify-content:center;min-height:280px;">
+      <div style="text-align:center;">
+        <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Dashed circle -->
+          <circle cx="50" cy="50" r="40" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 4" fill="none"/>
+          <!-- Arrow pointing up-right (send) -->
+          <path d="M35 65 L65 35" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M50 35 L65 35 L65 50" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Small dots -->
+          <circle cx="30" cy="42" r="1.5" fill="#475569"/>
+          <circle cx="70" cy="58" r="1.5" fill="#475569"/>
+          <circle cx="50" cy="78" r="1.5" fill="#475569"/>
+        </svg>
+        <div style="margin-top:20px;">
+          <p style="color:#94a3b8;font-size:14px;font-weight:500;margin:0;">No response yet</p>
+          <p style="color:#475569;font-size:12px;margin:8px 0 0;">Hit <span style="background:#1e293b;border:1px solid #334155;border-radius:3px;padding:1px 6px;font-family:monospace;font-size:11px;color:#94a3b8;">Send</span> to make your first request</p>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Minimal Send Arrow</h3>
+      <p>Clean geometric illustration with a send-arrow motif. Understated and professional. Less branded, more universal.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Animated pulse with code brackets -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a0f;padding:32px;display:flex;align-items:center;justify-content:center;min-height:280px;">
+      <div style="text-align:center;">
+        <svg width="110" height="100" viewBox="0 0 110 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Left bracket -->
+          <path d="M25 25 L15 25 L15 75 L25 75" stroke="#334155" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Right bracket -->
+          <path d="M85 25 L95 25 L95 75 L85 75" stroke="#334155" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Placeholder lines inside -->
+          <line x1="32" y1="38" x2="55" y2="38" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+          <line x1="32" y1="50" x2="72" y2="50" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+          <line x1="32" y1="62" x2="48" y2="62" stroke="#1e293b" stroke-width="3" stroke-linecap="round"/>
+          <!-- Cursor blink -->
+          <rect x="55" y="45" width="2" height="14" fill="#3b82f6" opacity="0.8">
+            <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.2s" repeatCount="indefinite"/>
+          </rect>
+        </svg>
+        <div style="margin-top:20px;">
+          <p style="color:#94a3b8;font-size:14px;font-weight:500;margin:0;">Awaiting response</p>
+          <p style="color:#475569;font-size:12px;margin:8px 0 0;">The response body will appear here after you send a request</p>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Code Brackets + Cursor</h3>
+      <p>JSON-bracket motif with a blinking cursor, suggesting "response will fill here." Subtle animation draws attention without being distracting.</p>
+    </div>
+  </div>
+</div>
