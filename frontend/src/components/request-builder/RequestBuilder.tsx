@@ -1,4 +1,5 @@
 import { HttpRequest, HttpResponse, QueryParam } from '@/types'
+import { useCollectionsStore } from '@/store/collections'
 import { EnvironmentsDialog } from '@/components/collections/EnvironmentsDialog'
 import { RequestBuilderTabs } from '@/components/request-builder/RequestBuilderTabs'
 import { RequestBuilderResponsePanel } from '@/components/request-builder/RequestBuilderResponsePanel'
@@ -96,7 +97,12 @@ export function RequestBuilder({ onRequestSent }: RequestBuilderProps) {
           pathParams={pathParams}
           queryParams={queryParams}
           onRequestNameChange={updateActiveName}
-          onSetActiveEnvironment={setActiveEnvironment}
+          onSetActiveEnvironment={(env) => {
+            setActiveEnvironment(env)
+            if (env && activeCollection) {
+              useCollectionsStore.getState().fetchEnvironmentDetail(activeCollection.name, env.name)
+            }
+          }}
           onOpenEnvironmentsDialog={() => setEnvDialogOpen(true)}
           onSubmit={handleSubmit}
           onSave={handleSaveRequest}

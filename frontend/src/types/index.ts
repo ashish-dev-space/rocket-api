@@ -44,14 +44,14 @@ export interface FormDataField {
 }
 
 export interface RequestBody {
-  type: 'none' | 'json' | 'form-data' | 'raw' | 'binary'
+  type: 'none' | 'json' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary'
   content: string
   formData?: FormDataField[]
   fileName?: string // for binary uploads
 }
 
 export interface AuthConfig {
-  type: 'none' | 'basic' | 'bearer' | 'api-key'
+  type: 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2'
   basic?: {
     username: string
     password: string
@@ -63,6 +63,17 @@ export interface AuthConfig {
     key: string
     value: string
     in: 'header' | 'query'
+  }
+  oauth2?: {
+    grantType: 'authorization_code' | 'client_credentials' | 'password'
+    authUrl: string
+    tokenUrl: string
+    clientId: string
+    clientSecret: string
+    scope: string
+    username?: string
+    password?: string
+    accessToken?: string
   }
 }
 

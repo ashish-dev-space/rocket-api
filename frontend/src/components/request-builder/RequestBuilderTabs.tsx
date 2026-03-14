@@ -246,6 +246,7 @@ export function RequestBuilderTabs({
                   <SelectItem value="none" className="text-xs">None</SelectItem>
                   <SelectItem value="json" className="text-xs">JSON</SelectItem>
                   <SelectItem value="form-data" className="text-xs">Form Data</SelectItem>
+                  <SelectItem value="x-www-form-urlencoded" className="text-xs">x-www-form-urlencoded</SelectItem>
                   <SelectItem value="raw" className="text-xs">Raw</SelectItem>
                   <SelectItem value="binary" className="text-xs">Binary</SelectItem>
                 </SelectContent>
@@ -284,7 +285,7 @@ export function RequestBuilderTabs({
               </div>
             )}
 
-            {body.type === 'form-data' && (
+            {(body.type === 'form-data' || body.type === 'x-www-form-urlencoded') && (
               <div className="space-y-2">
                 {body.formData?.map((field, index) => (
                   <div key={index} className="flex gap-2 items-center">
@@ -304,7 +305,7 @@ export function RequestBuilderTabs({
                       onChange={(e) => updateFormDataField(index, 'key', e.target.value)}
                       className="flex-1 text-xs h-8"
                     />
-                    {field.type === 'text' ? (
+                    {field.type === 'text' || body.type === 'x-www-form-urlencoded' ? (
                       <Input
                         placeholder="Value"
                         aria-label={`Form data value ${index + 1}`}
@@ -327,6 +328,7 @@ export function RequestBuilderTabs({
                         </label>
                       </div>
                     )}
+                    {body.type === 'form-data' && (
                     <Select
                       value={field.type}
                       onValueChange={(v) => updateFormDataField(index, 'type', v)}
@@ -339,6 +341,7 @@ export function RequestBuilderTabs({
                         <SelectItem value="file" className="text-xs">File</SelectItem>
                       </SelectContent>
                     </Select>
+                    )}
                     <button
                       onClick={() => removeFormDataField(index)}
                       className="p-1 hover:bg-muted rounded"
@@ -398,6 +401,7 @@ export function RequestBuilderTabs({
                 <SelectItem value="basic" className="text-xs">Basic Auth</SelectItem>
                 <SelectItem value="bearer" className="text-xs">Bearer Token</SelectItem>
                 <SelectItem value="api-key" className="text-xs">API Key</SelectItem>
+                <SelectItem value="oauth2" className="text-xs">OAuth 2.0</SelectItem>
               </SelectContent>
             </Select>
 
@@ -500,6 +504,163 @@ export function RequestBuilderTabs({
                     <SelectItem value="query" className="text-xs">Query Param</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {auth.type === 'oauth2' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Grant Type</label>
+                  <Select
+                    value={auth.oauth2?.grantType || 'client_credentials'}
+                    onValueChange={(v) => setAuth({
+                      type: 'oauth2',
+                      oauth2: {
+                        ...auth.oauth2,
+                        grantType: v as 'authorization_code' | 'client_credentials' | 'password',
+                        authUrl: auth.oauth2?.authUrl || '',
+                        tokenUrl: auth.oauth2?.tokenUrl || '',
+                        clientId: auth.oauth2?.clientId || '',
+                        clientSecret: auth.oauth2?.clientSecret || '',
+                        scope: auth.oauth2?.scope || '',
+                      },
+                    })}
+                  >
+                    <SelectTrigger className="w-[200px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client_credentials" className="text-xs">Client Credentials</SelectItem>
+                      <SelectItem value="authorization_code" className="text-xs">Authorization Code</SelectItem>
+                      <SelectItem value="password" className="text-xs">Password</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {auth.oauth2?.grantType === 'authorization_code' && (
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Auth URL</label>
+                    <Input
+                      placeholder="https://provider.com/oauth/authorize"
+                      aria-label="OAuth 2.0 auth URL"
+                      value={auth.oauth2?.authUrl || ''}
+                      onChange={(e) => setAuth({
+                        type: 'oauth2',
+                        oauth2: { ...auth.oauth2!, authUrl: e.target.value },
+                      })}
+                      className="text-xs h-8 font-mono"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Token URL</label>
+                  <Input
+                    placeholder="https://provider.com/oauth/token"
+                    aria-label="OAuth 2.0 token URL"
+                    value={auth.oauth2?.tokenUrl || ''}
+                    onChange={(e) => setAuth({
+                      type: 'oauth2',
+                      oauth2: { ...auth.oauth2!, tokenUrl: e.target.value },
+                    })}
+                    className="text-xs h-8 font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Client ID</label>
+                    <Input
+                      placeholder="Client ID"
+                      aria-label="OAuth 2.0 client ID"
+                      value={auth.oauth2?.clientId || ''}
+                      onChange={(e) => setAuth({
+                        type: 'oauth2',
+                        oauth2: { ...auth.oauth2!, clientId: e.target.value },
+                      })}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Client Secret</label>
+                    <Input
+                      type="password"
+                      placeholder="Client Secret"
+                      aria-label="OAuth 2.0 client secret"
+                      value={auth.oauth2?.clientSecret || ''}
+                      onChange={(e) => setAuth({
+                        type: 'oauth2',
+                        oauth2: { ...auth.oauth2!, clientSecret: e.target.value },
+                      })}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </div>
+
+                {auth.oauth2?.grantType === 'password' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Username</label>
+                      <Input
+                        placeholder="Username"
+                        aria-label="OAuth 2.0 username"
+                        value={auth.oauth2?.username || ''}
+                        onChange={(e) => setAuth({
+                          type: 'oauth2',
+                          oauth2: { ...auth.oauth2!, username: e.target.value },
+                        })}
+                        className="text-xs h-8"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Password</label>
+                      <Input
+                        type="password"
+                        placeholder="Password"
+                        aria-label="OAuth 2.0 password"
+                        value={auth.oauth2?.password || ''}
+                        onChange={(e) => setAuth({
+                          type: 'oauth2',
+                          oauth2: { ...auth.oauth2!, password: e.target.value },
+                        })}
+                        className="text-xs h-8"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Scope</label>
+                  <Input
+                    placeholder="read write (space-separated)"
+                    aria-label="OAuth 2.0 scope"
+                    value={auth.oauth2?.scope || ''}
+                    onChange={(e) => setAuth({
+                      type: 'oauth2',
+                      oauth2: { ...auth.oauth2!, scope: e.target.value },
+                    })}
+                    className="text-xs h-8"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-border/50">
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Access Token</label>
+                    <Input
+                      placeholder="Token will appear here after fetching"
+                      aria-label="OAuth 2.0 access token"
+                      value={auth.oauth2?.accessToken || ''}
+                      onChange={(e) => setAuth({
+                        type: 'oauth2',
+                        oauth2: { ...auth.oauth2!, accessToken: e.target.value },
+                      })}
+                      className="text-xs h-8 font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Paste a token manually or use the backend to fetch one. The token is sent as a Bearer header.
+                  </p>
+                </div>
               </div>
             )}
           </div>

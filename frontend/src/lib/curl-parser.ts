@@ -101,6 +101,19 @@ function inferBodyType(headers: Header[], bodyContent: string, formData: FormDat
     return { type: 'json', content: bodyContent }
   }
 
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const fields: FormDataField[] = bodyContent.split('&').map(pair => {
+      const eqIdx = pair.indexOf('=')
+      return {
+        key: eqIdx >= 0 ? decodeURIComponent(pair.slice(0, eqIdx)) : decodeURIComponent(pair),
+        value: eqIdx >= 0 ? decodeURIComponent(pair.slice(eqIdx + 1)) : '',
+        type: 'text' as const,
+        enabled: true,
+      }
+    }).filter(f => f.key)
+    return { type: 'x-www-form-urlencoded', content: bodyContent, formData: fields }
+  }
+
   return { type: 'raw', content: bodyContent }
 }
 

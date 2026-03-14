@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { VariableAwareUrlInput } from '@/components/request-builder/VariableAwareUrlInput'
 import { METHOD_TEXT_COLORS } from '@/lib/constants'
 import { CollectionVar, Environment, HttpMethod, QueryParam } from '@/types'
-import { Globe, Loader2, Play, Save, Settings2 } from 'lucide-react'
+import { Globe, Loader2, Play, Save, Settings2, Code2 } from 'lucide-react'
 
 interface RequestBuilderToolbarProps {
   name: string
@@ -33,6 +33,7 @@ interface RequestBuilderToolbarProps {
   onOpenEnvironmentsDialog: () => void
   onSubmit: (e?: React.FormEvent) => Promise<void>
   onSave: () => Promise<void>
+  onGenerateCode: () => void
   onSaveParamToken: (tokenName: string, tokenValue: string, target: 'path' | 'query') => Promise<void>
   onSaveVariable: (name: string, value: string) => Promise<void>
   onImportCurl: (command: string) => Promise<void>
@@ -60,6 +61,7 @@ export function RequestBuilderToolbar({
   onOpenEnvironmentsDialog,
   onSubmit,
   onSave,
+  onGenerateCode,
   onSaveParamToken,
   onSaveVariable,
   onImportCurl,
@@ -182,6 +184,24 @@ export function RequestBuilderToolbar({
             </TooltipTrigger>
             <TooltipContent>
               <p>{isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onGenerateCode}
+                className="font-medium px-3 hover:bg-accent/40"
+              >
+                <Code2 className="h-4 w-4 mr-2" />
+                Code
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Generate code snippet</p>
             </TooltipContent>
           </Tooltip>
         </form>

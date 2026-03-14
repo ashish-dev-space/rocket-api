@@ -72,8 +72,10 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
   const isLoading = activeTab_?.kind === 'request' ? activeTab_.isLoading : false
   const response = activeTab_?.kind === 'request' ? activeTab_.response : null
 
+  // Derived from the store so it survives a page reload without a sync effect.
+  const method: HttpMethod = currentRequest?.method ?? 'GET'
+
   const [name, setName] = useState('Untitled Request')
-  const [method, setMethod] = useState<HttpMethod>('GET')
   const [url, setUrl] = useState('')
   const [headers, setHeaders] = useState<Header[]>([])
   const [queryParams, setQueryParams] = useState<QueryParam[]>([])
@@ -85,6 +87,10 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     preRequest: '',
     postResponse: '',
   })
+
+  const handleMethodChange = useCallback((newMethod: HttpMethod) => {
+    updateActiveMethod(newMethod)
+  }, [updateActiveMethod])
 
   const handleMouseDown = useCallback(() => {
     setIsDragging(true)
@@ -120,7 +126,6 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
   useLayoutEffect(() => {
     if (currentRequest) {
       setName(currentRequest.name)
-      setMethod(currentRequest.method)
       setUrl(currentRequest.url)
       setHeaders(currentRequest.headers)
       setQueryParams(currentRequest.queryParams)
@@ -226,7 +231,6 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
   const handleImportCurl = useCallback(async (command: string) => {
     const parsed = parseCurlCommand(command)
 
-    setMethod(parsed.method)
     updateActiveMethod(parsed.method)
 
     setUrl(parsed.url)
@@ -306,6 +310,8 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
         if (auth.apiKey.in === 'header') {
           finalHeaders.push({ key: auth.apiKey.key, value: auth.apiKey.value, enabled: true })
         }
+      } else if (auth.type === 'oauth2' && auth.oauth2?.accessToken) {
+        finalHeaders.push({ key: 'Authorization', value: `Bearer ${auth.oauth2.accessToken}`, enabled: true })
       }
 
       const finalQueryParams = applyApiKeyToQueryParams(queryParams.filter(q => q.enabled), auth)
@@ -475,7 +481,7 @@ export function useRequestBuilderState({ onRequestSent }: RequestBuilderStateOpt
     name,
     setName,
     method,
-    setMethod,
+    setMethod: handleMethodChange,
     url,
     setUrl,
     headers,
